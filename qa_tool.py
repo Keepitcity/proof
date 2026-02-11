@@ -1793,7 +1793,7 @@ def render_footer():
                 <div style="font-size: 11px; color: #71717a; text-transform: uppercase; letter-spacing: 0.05em;">Time Saved</div>
             </div>
         </div>
-        <p style="text-align: center; font-size: 11px; color: #71717a !important; letter-spacing: 0.05em;">Proof by Aerial Canvas · Beta v2.2.1</p>
+        <p style="text-align: center; font-size: 11px; color: #71717a !important; letter-spacing: 0.05em;">Proof by Aerial Canvas · Beta v2.3</p>
     </div>
     """, unsafe_allow_html=True)
 
@@ -5785,25 +5785,39 @@ def display_video_review_interface(report: QAReport, video_path: str = None, sho
     """
     duration = report.metadata.get('duration', 0)
 
-    # Count results
-    passes = sum(1 for i in report.issues if i.status == "pass")
-    failures = sum(1 for i in report.issues if i.status == "fail")
-    warnings = sum(1 for i in report.issues if i.status == "warning")
-    total = passes + failures + warnings
-    is_passing = failures == 0
-
-    # Separate issues by type
-    timeline_issues = [i for i in report.issues if i.timestamp_start is not None and i.status in ('fail', 'warning')]
-    general_issues = [i for i in report.issues if i.timestamp_start is None and i.status in ('fail', 'warning')]
-    passed_issues = [i for i in report.issues if i.status == "pass"]
-
-    # Sort timeline issues by timestamp
-    timeline_issues.sort(key=lambda x: x.timestamp_start or 0)
-
-    # Unique key for this report's selection state
+    # Unique key for this report's state
     report_key = f"video_review_{hash(report.filename)}"
     if report_key not in st.session_state:
         st.session_state[report_key] = 0
+
+    # Track dismissed issues (by check_name to persist across reruns)
+    dismissed_timeline_key = f"dismissed_timeline_{report_key}"
+    dismissed_general_key = f"dismissed_general_{report_key}"
+    if dismissed_timeline_key not in st.session_state:
+        st.session_state[dismissed_timeline_key] = set()
+    if dismissed_general_key not in st.session_state:
+        st.session_state[dismissed_general_key] = set()
+
+    # Separate issues by type
+    all_timeline_issues = [i for i in report.issues if i.timestamp_start is not None and i.status in ('fail', 'warning')]
+    all_general_issues = [i for i in report.issues if i.timestamp_start is None and i.status in ('fail', 'warning')]
+    passed_issues = [i for i in report.issues if i.status == "pass"]
+
+    # Sort timeline issues by timestamp
+    all_timeline_issues.sort(key=lambda x: x.timestamp_start or 0)
+
+    # Filter out dismissed issues
+    timeline_issues = [(i, issue) for i, issue in enumerate(all_timeline_issues)
+                       if issue.check_name not in st.session_state[dismissed_timeline_key]]
+    general_issues = [(i, issue) for i, issue in enumerate(all_general_issues)
+                      if issue.check_name not in st.session_state[dismissed_general_key]]
+
+    # Count results from FILTERED issues (excludes dismissed)
+    passes = len(passed_issues)
+    failures = sum(1 for _, i in timeline_issues if i.status == "fail") + sum(1 for _, i in general_issues if i.status == "fail")
+    warnings = sum(1 for _, i in timeline_issues if i.status == "warning") + sum(1 for _, i in general_issues if i.status == "warning")
+    total = passes + failures + warnings
+    is_passing = failures == 0
 
     # Helper to get/set selected index
     def get_selected():
@@ -5910,15 +5924,15 @@ def display_video_review_interface(report: QAReport, video_path: str = None, sho
         # Standard Streamlit video player (handles large files)
         st.video(video_path)
 
-        # Build markers list for the timeline
+        # Build markers list for the timeline (timeline_issues is list of (orig_idx, issue) tuples)
         markers = []
-        for i, issue in enumerate(timeline_issues):
+        for display_idx, (orig_idx, issue) in enumerate(timeline_issues):
             category = get_issue_category(issue.check_name)
             markers.append({
                 'timestamp': issue.timestamp_start,
                 'color': category_colors[category]['bg'],
                 'label': issue.check_name,
-                'index': i
+                'index': display_idx
             })
 
         # Render timeline with markers below video (if there are issues)
@@ -5967,18 +5981,7 @@ def display_video_review_interface(report: QAReport, video_path: str = None, sho
     # =============================================
     # TIMELINE ISSUES LIST (click markers above to seek video)
     # =============================================
-    # Track dismissed issues in session state
-    dismissed_key = f"dismissed_issues_{report_key}"
-    if dismissed_key not in st.session_state:
-        st.session_state[dismissed_key] = set()
-
-    # Filter out dismissed issues
-    visible_timeline_issues = [
-        (i, issue) for i, issue in enumerate(timeline_issues)
-        if i not in st.session_state[dismissed_key]
-    ]
-
-    if visible_timeline_issues:
+    if timeline_issues:
         st.markdown(f"""
         <div style="margin-top: 16px; margin-bottom: 8px;">
             <span style="color: #fff; font-size: 14px; font-weight: 600;">Timeline Issues</span>
@@ -5986,7 +5989,7 @@ def display_video_review_interface(report: QAReport, video_path: str = None, sho
         </div>
         """, unsafe_allow_html=True)
 
-        for idx, issue in visible_timeline_issues:
+        for display_idx, (orig_idx, issue) in enumerate(timeline_issues):
             category = get_issue_category(issue.check_name)
             cat_info = category_colors[category]
             timestamp = format_timestamp_short(issue.timestamp_start)
@@ -6013,36 +6016,19 @@ def display_video_review_interface(report: QAReport, video_path: str = None, sho
             </div>
             """, unsafe_allow_html=True)
 
-            # For log footage detection, add Correct/Not Log buttons
-            if issue.check_name == "Log Footage Detection":
-                col1, col2, col3 = st.columns([2, 1, 1])
-                with col2:
-                    if st.button("Correct", key=f"correct_{report_key}_{idx}", use_container_width=True, type="primary"):
-                        with st.spinner("Saving..."):
-                            try:
-                                from database import learning_db
-                                learning_db.save_video_detection_feedback("log_footage", 30, 20, True)
-                            except Exception:
-                                pass
-                        st.success("Marked as correct")
-                with col3:
-                    if st.button("Not Log", key=f"notlog_{report_key}_{idx}", use_container_width=True):
-                        # Dismiss this issue from current view
-                        with st.spinner("Dismissing..."):
-                            st.session_state[dismissed_key].add(idx)
-                            try:
-                                from database import learning_db
-                                learning_db.save_video_detection_feedback("log_footage", 30, 20, False)
-                            except Exception:
-                                pass
-                        st.rerun()
+            # Dismiss button for ALL timeline issues
+            col1, col2 = st.columns([3, 1])
+            with col2:
+                if st.button("Dismiss", key=f"dismiss_tl_{report_key}_{orig_idx}", use_container_width=True):
+                    st.session_state[dismissed_timeline_key].add(issue.check_name)
+                    st.rerun()
 
     # =============================================
-    # GENERAL ISSUES - CLEAN CARD VIEW
+    # GENERAL ISSUES - CLEAN CARD VIEW (Issues Summary)
     # =============================================
     if general_issues:
-        # Count fails vs warnings
-        fail_count = sum(1 for i in general_issues if i.status == 'fail')
+        # Count fails vs warnings from filtered issues (general_issues is list of (idx, issue) tuples)
+        fail_count = sum(1 for _, issue in general_issues if issue.status == 'fail')
         warn_count = len(general_issues) - fail_count
 
         st.markdown(f"""
@@ -6061,8 +6047,8 @@ def display_video_review_interface(report: QAReport, video_path: str = None, sho
         </div>
         """, unsafe_allow_html=True)
 
-        # Build clean issue cards
-        for idx, issue in enumerate(general_issues):
+        # Build clean issue cards with dismiss buttons
+        for orig_idx, issue in general_issues:
             severity_color = "#ef4444" if issue.status == 'fail' else "#f59e0b"
             severity_label = "FAIL" if issue.status == 'fail' else "WARNING"
 
@@ -6084,6 +6070,13 @@ def display_video_review_interface(report: QAReport, video_path: str = None, sho
                 </div>
             </div>
             """, unsafe_allow_html=True)
+
+            # Dismiss button for this issue
+            col1, col2 = st.columns([3, 1])
+            with col2:
+                if st.button("Dismiss", key=f"dismiss_gen_{report_key}_{orig_idx}", use_container_width=True):
+                    st.session_state[dismissed_general_key].add(issue.check_name)
+                    st.rerun()
 
     # =============================================
     # PASSED CHECKS (collapsed)
