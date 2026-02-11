@@ -1793,7 +1793,7 @@ def render_footer():
                 <div style="font-size: 11px; color: #71717a; text-transform: uppercase; letter-spacing: 0.05em;">Time Saved</div>
             </div>
         </div>
-        <p style="text-align: center; font-size: 11px; color: #71717a !important; letter-spacing: 0.05em;">Proof by Aerial Canvas · Beta v1.5</p>
+        <p style="text-align: center; font-size: 11px; color: #71717a !important; letter-spacing: 0.05em;">Proof by Aerial Canvas · Beta v1.5.1</p>
     </div>
     """, unsafe_allow_html=True)
 
@@ -8700,12 +8700,13 @@ def display_auto_sort():
                         if p.get('image_bytes'):
                             import base64 as b64
                             img_b64 = b64.b64encode(p['image_bytes']).decode()
+                            # Use this.src to avoid duplicating the base64 string (memory efficient)
                             st.markdown(f"""
                             <div style="padding: 4px;">
                                 <img src="data:image/jpeg;base64,{img_b64}"
                                      class="photo-thumbnail"
                                      style="width: 100%; border-radius: 8px;"
-                                     onclick="openLightbox('data:image/jpeg;base64,{img_b64}')"
+                                     onclick="openLightbox(this.src)"
                                      title="Click to enlarge">
                                 <div style="text-align: center; margin-top: 4px;">
                                     <span style="color: #71717a; font-size: 10px;">Click to enlarge</span>
