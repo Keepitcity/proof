@@ -161,6 +161,68 @@ def organize_in_dropbox(dbx, source_folder_path, project_name, clips_data, expor
 
     return dest_folder, len(exported_clips), xml_filename
 
+
+def organize_photos_in_dropbox(dbx, source_shared_link, sorted_photos):
+    """
+    Create organized folder in Dropbox with renamed photos.
+
+    Args:
+        dbx: Authenticated Dropbox client
+        source_shared_link: Original Dropbox shared link
+        sorted_photos: List of sorted photo data with new filenames
+
+    Returns:
+        (dest_folder_path, num_photos_copied) tuple
+    """
+    try:
+        # Get the source folder path from shared link
+        link_meta = dbx.sharing_get_shared_link_metadata(source_shared_link)
+        source_path = link_meta.path_lower
+
+        # Create destination folder (sibling to source with _Sorted suffix)
+        parent_path = os.path.dirname(source_path.rstrip('/'))
+        folder_name = os.path.basename(source_path.rstrip('/'))
+        dest_folder = f"{parent_path}/{folder_name}_Sorted"
+
+        # Create the destination folder
+        try:
+            dbx.files_create_folder_v2(dest_folder)
+        except ApiError as e:
+            if 'path/conflict/folder' in str(e):
+                # Folder exists, add timestamp
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                dest_folder = f"{parent_path}/{folder_name}_Sorted_{timestamp}"
+                dbx.files_create_folder_v2(dest_folder)
+            else:
+                raise e
+
+        # Copy and rename each photo
+        copied_count = 0
+        for photo in sorted_photos:
+            try:
+                # Source path in Dropbox
+                original_filename = photo['filename']
+                source_file_path = f"{source_path}/{original_filename}"
+
+                # New filename
+                _, ext = os.path.splitext(original_filename)
+                new_filename = f"{photo['new_filename']}{ext}"
+                dest_file_path = f"{dest_folder}/{new_filename}"
+
+                # Copy file
+                dbx.files_copy_v2(source_file_path, dest_file_path)
+                copied_count += 1
+            except ApiError as e:
+                # Skip files that can't be copied
+                print(f"Could not copy {original_filename}: {e}")
+                continue
+
+        return dest_folder, copied_count
+
+    except Exception as e:
+        raise Exception(f"Dropbox error: {str(e)}")
+
+
 # YOLO Object Detection (for intelligent room classification)
 try:
     from ultralytics import YOLO
@@ -8268,35 +8330,67 @@ def display_auto_sort():
                                 st.session_state['photo_sort_data'] = resorted
                                 st.success("Photos re-sorted! Scroll up to see new order.")
 
-                        # Download section
-                        st.markdown("### Download Sorted Photos")
+                        # Download/Save section
+                        st.markdown("### Save Sorted Photos")
 
-                        import zipfile
-                        import io
+                        save_col1, save_col2 = st.columns(2)
 
-                        zip_buffer = io.BytesIO()
-                        photos_to_zip = st.session_state.get('edited_photo_sort', sorted_photos)
+                        with save_col1:
+                            # Save to Dropbox button
+                            if st.button("☁️ Save to Dropbox", key="btn_save_to_dropbox_photos", use_container_width=True, type="primary"):
+                                with st.spinner("Creating sorted folder in Dropbox..."):
+                                    try:
+                                        # Get Dropbox client
+                                        dbx = dropbox.Dropbox(
+                                            oauth2_refresh_token=DROPBOX_REFRESH_TOKEN,
+                                            app_key=DROPBOX_APP_KEY,
+                                            app_secret=DROPBOX_APP_SECRET
+                                        )
 
-                        with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zf:
-                            for p in photos_to_zip:
-                                if os.path.exists(p['path']):
-                                    _, ext = os.path.splitext(p['filename'])
-                                    new_name = f"{p['new_filename']}{ext}"
-                                    zf.write(p['path'], new_name)
+                                        photos_to_save = st.session_state.get('edited_photo_sort', sorted_photos)
 
-                        zip_buffer.seek(0)
-                        folder_name = os.path.splitext(filename)[0] if filename else "photos"
+                                        # Save to Dropbox
+                                        dest_folder, num_copied = organize_photos_in_dropbox(
+                                            dbx,
+                                            photo_sort_link,
+                                            photos_to_save
+                                        )
 
-                        st.download_button(
-                            label="⬇️ Download Sorted Photos (ZIP)",
-                            data=zip_buffer.getvalue(),
-                            file_name=f"{folder_name}_sorted.zip",
-                            mime="application/zip",
-                            use_container_width=True,
-                            type="primary"
-                        )
+                                        st.success(f"✅ Saved {num_copied} photos to Dropbox!")
+                                        st.info(f"📁 New folder created: {dest_folder}")
 
-                        st.caption("ZIP contains all photos renamed in delivery order.")
+                                    except Exception as e:
+                                        st.error(f"Error saving to Dropbox: {str(e)}")
+
+                            st.caption("Creates a new '_Sorted' folder in Dropbox with renamed photos")
+
+                        with save_col2:
+                            # Download ZIP button
+                            import zipfile
+                            import io
+
+                            zip_buffer = io.BytesIO()
+                            photos_to_zip = st.session_state.get('edited_photo_sort', sorted_photos)
+
+                            with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zf:
+                                for p in photos_to_zip:
+                                    if os.path.exists(p['path']):
+                                        _, ext = os.path.splitext(p['filename'])
+                                        new_name = f"{p['new_filename']}{ext}"
+                                        zf.write(p['path'], new_name)
+
+                            zip_buffer.seek(0)
+                            folder_name = os.path.splitext(filename)[0] if filename else "photos"
+
+                            st.download_button(
+                                label="⬇️ Download ZIP",
+                                data=zip_buffer.getvalue(),
+                                file_name=f"{folder_name}_sorted.zip",
+                                mime="application/zip",
+                                use_container_width=True
+                            )
+
+                            st.caption("Download renamed photos as a ZIP file")
 
                     # Cleanup
                     try:
