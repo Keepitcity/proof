@@ -1793,7 +1793,7 @@ def render_footer():
                 <div style="font-size: 11px; color: #71717a; text-transform: uppercase; letter-spacing: 0.05em;">Time Saved</div>
             </div>
         </div>
-        <p style="text-align: center; font-size: 11px; color: #71717a !important; letter-spacing: 0.05em;">Proof by Aerial Canvas · Beta v2.0</p>
+        <p style="text-align: center; font-size: 11px; color: #71717a !important; letter-spacing: 0.05em;">Proof by Aerial Canvas · Beta v2.0.1</p>
     </div>
     """, unsafe_allow_html=True)
 
@@ -4729,7 +4729,9 @@ def run_video_qa(file_path: str, folder_path: str = "", progress_callback=None, 
             'resolution_tier': format_info.get('resolution_tier', 'Unknown'),
             'use_case': format_info.get('use_case', 'Unknown'),
             'analysis_mode': analysis_mode,
-            'analysis_mode_label': mode_labels.get(analysis_mode, 'Standard')
+            'analysis_mode_label': mode_labels.get(analysis_mode, 'Standard'),
+            'filename': filename,
+            'file_size': os.path.getsize(file_path) if os.path.exists(file_path) else 0
         }
     )
 
@@ -5576,10 +5578,12 @@ def download_from_dropbox(share_link: str) -> tuple:
         # Clean up the URL
         url = share_link.strip()
 
-        # Extract filename from URL
+        # Extract filename from URL (will be overwritten by content-disposition if available)
         parsed = urllib.parse.urlparse(url)
         path_parts = parsed.path.split('/')
-        filename = path_parts[-1] if path_parts else "download"
+        filename_from_url = path_parts[-1] if path_parts else "download"
+        # URL decode the filename (convert %20 to space, etc.)
+        filename = urllib.parse.unquote(filename_from_url)
 
         # Convert to direct download link
         if 'dropbox.com' in url:
@@ -5618,13 +5622,19 @@ def download_from_dropbox(share_link: str) -> tuple:
             if response.status_code != 200:
                 return None, None, f"HTTP {response.status_code} - Could not download file"
 
-        # Get filename from content-disposition header if available
+        # Get filename from content-disposition header if available (more reliable than URL)
         if 'content-disposition' in response.headers:
             import re
             cd = response.headers['content-disposition']
-            fname_match = re.findall('filename="?([^";\n]+)"?', cd)
-            if fname_match:
-                filename = fname_match[0]
+            # Try UTF-8 encoded filename first (RFC 5987 format)
+            utf8_match = re.findall(r"filename\*=(?:UTF-8|utf-8)''([^;\n]+)", cd)
+            if utf8_match:
+                filename = urllib.parse.unquote(utf8_match[0])
+            else:
+                # Fall back to regular filename
+                fname_match = re.findall('filename="?([^";\n]+)"?', cd)
+                if fname_match:
+                    filename = urllib.parse.unquote(fname_match[0])
 
         # Determine file extension
         ext = os.path.splitext(filename)[1].lower()
