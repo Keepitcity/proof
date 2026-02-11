@@ -8197,70 +8197,88 @@ def display_auto_sort():
 
                         # Display sorted preview with editable room types
                         st.markdown("### Preview & Edit Room Types")
-                        st.caption("Review each photo and change the room type if needed. Changes auto-save.")
+                        st.caption("Click any photo to see it larger. Change room types with the dropdown - order updates automatically.")
 
-                        # Initialize edited photos in session state if not exists
-                        if 'edited_photo_sort' not in st.session_state:
-                            st.session_state['edited_photo_sort'] = sorted_photos.copy()
+                        # Store photos in session state for persistence
+                        st.session_state['edited_photo_sort'] = sorted_photos.copy()
+                        st.session_state['photo_paths_cache'] = {p['filename']: p['path'] for p in sorted_photos}
 
                         room_options = list(ROOM_TYPES.keys())
                         room_labels = {k: ROOM_TYPES[k].get('name', k) for k in room_options}
 
-                        # Display photos with thumbnails and editable dropdowns
-                        edited_photos = st.session_state['edited_photo_sort']
+                        # Track if any room changed
+                        rooms_changed = False
 
-                        for idx, p in enumerate(edited_photos):
-                            col1, col2, col3, col4 = st.columns([1, 2, 2, 2])
+                        # Display photos in a grid - 2 per row with large thumbnails
+                        for idx in range(0, len(sorted_photos), 2):
+                            cols = st.columns(2)
 
-                            with col1:
-                                # Show thumbnail
-                                if os.path.exists(p['path']):
-                                    try:
-                                        st.image(p['path'], width=60)
-                                    except:
-                                        st.markdown("📷")
-                                else:
-                                    st.markdown("📷")
+                            for col_idx, col in enumerate(cols):
+                                photo_idx = idx + col_idx
+                                if photo_idx >= len(sorted_photos):
+                                    break
 
-                            with col2:
-                                st.markdown(f"<div style='padding-top: 8px; color: #71717a; font-size: 11px;'>{p['filename'][:25]}{'...' if len(p['filename']) > 25 else ''}</div>", unsafe_allow_html=True)
+                                p = sorted_photos[photo_idx]
 
-                            with col3:
-                                # Editable room type dropdown
-                                current_room = p.get('room_type', 'living_room')
-                                current_idx = room_options.index(current_room) if current_room in room_options else 0
-                                new_room = st.selectbox(
-                                    "Room",
-                                    options=room_options,
-                                    index=current_idx,
-                                    format_func=lambda x: room_labels.get(x, x),
-                                    key=f"room_select_{idx}",
-                                    label_visibility="collapsed"
-                                )
-                                # Update if changed
-                                if new_room != current_room:
-                                    st.session_state['edited_photo_sort'][idx]['room_type'] = new_room
+                                with col:
+                                    # Large thumbnail with click to expand
+                                    if os.path.exists(p['path']):
+                                        with st.expander(f"📷 {p.get('new_filename', f'Photo-{photo_idx+1}')} - Click to enlarge", expanded=False):
+                                            st.image(p['path'], use_container_width=True)
 
-                            with col4:
-                                new_name = p.get('new_filename', f"Photo-{idx+1}")
-                                st.markdown(f"<div style='padding-top: 8px; color: #fff; font-size: 12px;'>→ <strong>{new_name}</strong></div>", unsafe_allow_html=True)
+                                        # Show medium thumbnail
+                                        try:
+                                            st.image(p['path'], width=300)
+                                        except:
+                                            st.markdown("📷 Image preview unavailable")
+                                    else:
+                                        st.markdown("📷 Image not found")
 
-                        # Re-sort button after edits
-                        if st.button("Re-sort with Changes", key="btn_resort_photos", use_container_width=True):
-                            # Re-sort based on edited room types
-                            resorted = sort_photos_for_delivery(st.session_state['edited_photo_sort'])
-                            st.session_state['edited_photo_sort'] = resorted
-                            st.session_state['photo_sort_data'] = resorted
-                            st.rerun()
+                                    # Photo info and room selector
+                                    st.markdown(f"<div style='color: #71717a; font-size: 11px; margin-bottom: 4px;'>{p['filename']}</div>", unsafe_allow_html=True)
 
-                        # Download button - create ZIP immediately
-                        st.markdown("---")
+                                    # Editable room type dropdown
+                                    current_room = p.get('room_type', 'living_room')
+                                    current_idx_room = room_options.index(current_room) if current_room in room_options else 0
+
+                                    new_room = st.selectbox(
+                                        "Room Type",
+                                        options=room_options,
+                                        index=current_idx_room,
+                                        format_func=lambda x: room_labels.get(x, x),
+                                        key=f"room_select_{photo_idx}",
+                                    )
+
+                                    # Track changes
+                                    if new_room != current_room:
+                                        sorted_photos[photo_idx]['room_type'] = new_room
+                                        rooms_changed = True
+
+                                    # Show new filename
+                                    new_name = p.get('new_filename', f"Photo-{photo_idx+1}")
+                                    st.markdown(f"**New name:** {new_name}")
+                                    st.markdown("---")
+
+                        # Auto re-sort if rooms changed
+                        if rooms_changed:
+                            st.info("Room types changed! Click below to re-sort and update filenames.")
+                            if st.button("Apply Changes & Re-sort", key="btn_apply_resort", use_container_width=True, type="primary"):
+                                resorted = sort_photos_for_delivery(sorted_photos)
+                                st.session_state['edited_photo_sort'] = resorted
+                                st.session_state['photo_sort_data'] = resorted
+                                st.success("Photos re-sorted! Scroll up to see new order.")
+
+                        # Download section
+                        st.markdown("### Download Sorted Photos")
+
                         import zipfile
                         import io
 
                         zip_buffer = io.BytesIO()
+                        photos_to_zip = st.session_state.get('edited_photo_sort', sorted_photos)
+
                         with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zf:
-                            for p in st.session_state.get('edited_photo_sort', sorted_photos):
+                            for p in photos_to_zip:
                                 if os.path.exists(p['path']):
                                     _, ext = os.path.splitext(p['filename'])
                                     new_name = f"{p['new_filename']}{ext}"
@@ -8270,12 +8288,15 @@ def display_auto_sort():
                         folder_name = os.path.splitext(filename)[0] if filename else "photos"
 
                         st.download_button(
-                            label="Download Sorted Photos (ZIP)",
+                            label="⬇️ Download Sorted Photos (ZIP)",
                             data=zip_buffer.getvalue(),
                             file_name=f"{folder_name}_sorted.zip",
                             mime="application/zip",
-                            use_container_width=True
+                            use_container_width=True,
+                            type="primary"
                         )
+
+                        st.caption("ZIP contains all photos renamed in delivery order.")
 
                     # Cleanup
                     try:
