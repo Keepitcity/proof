@@ -1793,7 +1793,7 @@ def render_footer():
                 <div style="font-size: 11px; color: #71717a; text-transform: uppercase; letter-spacing: 0.05em;">Time Saved</div>
             </div>
         </div>
-        <p style="text-align: center; font-size: 11px; color: #71717a !important; letter-spacing: 0.05em;">Proof by Aerial Canvas · Beta v1.7</p>
+        <p style="text-align: center; font-size: 11px; color: #71717a !important; letter-spacing: 0.05em;">Proof by Aerial Canvas · Beta v1.8</p>
     </div>
     """, unsafe_allow_html=True)
 
@@ -5778,43 +5778,71 @@ def display_video_review_interface(report: QAReport, video_path: str = None, sho
     }
 
     # =============================================
-    # COMPACT HEADER
+    # QA SCORE HEADER - Tiered Pass/Fail System
     # =============================================
-    score = int(passes/total*100) if total > 0 else (100 if is_passing else 0)
-    if is_passing:
-        st.markdown(f"""
-        <div style="background: linear-gradient(135deg, rgba(74, 222, 128, 0.12), rgba(74, 222, 128, 0.02));
-                    border: 1px solid rgba(74, 222, 128, 0.3); border-radius: 12px; padding: 12px 16px; margin-bottom: 12px;">
-            <div style="display: flex; align-items: center; justify-content: space-between;">
-                <div style="display: flex; align-items: center; gap: 12px;">
-                    <div style="width: 36px; height: 36px; background: rgba(74, 222, 128, 0.2); border-radius: 50%;
-                                display: flex; align-items: center; justify-content: center; color: #4ade80; font-size: 18px; font-weight: 700;">✓</div>
-                    <div>
-                        <div style="font-size: 16px; font-weight: 600; color: #4ade80;">VIDEO PASSED</div>
-                        <div style="font-size: 11px; color: #71717a;">{passes}/{total} checks{f' · {warnings} warning(s)' if warnings > 0 else ''}</div>
-                    </div>
-                </div>
-                <div style="font-size: 24px; font-weight: 700; color: #4ade80;">{score}%</div>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
+    # Calculate QA Score: Start at 100, deduct for issues
+    # FAIL: -8 points each, WARNING: -3 points each
+    qa_score = max(0, 100 - (failures * 8) - (warnings * 3))
+
+    # Determine tier based on score
+    if qa_score >= 90:
+        tier_color = "#4ade80"  # Green
+        tier_bg = "rgba(74, 222, 128, 0.12)"
+        tier_border = "rgba(74, 222, 128, 0.3)"
+        tier_status = "PASS"
+        tier_label = "Ready for Delivery"
+        tier_icon = "✓"
+    elif qa_score >= 70:
+        tier_color = "#facc15"  # Yellow
+        tier_bg = "rgba(250, 204, 21, 0.12)"
+        tier_border = "rgba(250, 204, 21, 0.3)"
+        tier_status = "REVIEW"
+        tier_label = "Minor Issues"
+        tier_icon = "–"
+    elif qa_score >= 50:
+        tier_color = "#f59e0b"  # Orange
+        tier_bg = "rgba(245, 158, 11, 0.12)"
+        tier_border = "rgba(245, 158, 11, 0.3)"
+        tier_status = "ATTENTION"
+        tier_label = "Needs Work"
+        tier_icon = "!"
     else:
-        st.markdown(f"""
-        <div style="background: linear-gradient(135deg, rgba(239, 68, 68, 0.12), rgba(239, 68, 68, 0.02));
-                    border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 12px; padding: 12px 16px; margin-bottom: 12px;">
-            <div style="display: flex; align-items: center; justify-content: space-between;">
-                <div style="display: flex; align-items: center; gap: 12px;">
-                    <div style="width: 36px; height: 36px; background: rgba(239, 68, 68, 0.2); border-radius: 50%;
-                                display: flex; align-items: center; justify-content: center; color: #ef4444; font-size: 18px; font-weight: 700;">!</div>
-                    <div>
-                        <div style="font-size: 16px; font-weight: 600; color: #ef4444;">NEEDS ATTENTION</div>
-                        <div style="font-size: 11px; color: #71717a;">{failures} issue(s) · {warnings} warning(s)</div>
+        tier_color = "#ef4444"  # Red
+        tier_bg = "rgba(239, 68, 68, 0.12)"
+        tier_border = "rgba(239, 68, 68, 0.3)"
+        tier_status = "FAIL"
+        tier_label = "Not Ready"
+        tier_icon = "✕"
+
+    # Build progress bar segments
+    bar_filled = int(qa_score / 10)  # 0-10 segments
+    bar_empty = 10 - bar_filled
+    progress_bar = f'<span style="color: {tier_color};">{"█" * bar_filled}</span><span style="color: #333;">{"░" * bar_empty}</span>'
+
+    st.markdown(f"""
+    <div style="background: linear-gradient(135deg, {tier_bg}, rgba(0,0,0,0));
+                border: 1px solid {tier_border}; border-radius: 12px; padding: 16px 20px; margin-bottom: 16px;">
+        <div style="display: flex; align-items: center; justify-content: space-between;">
+            <div style="display: flex; align-items: center; gap: 14px;">
+                <div style="width: 44px; height: 44px; background: {tier_bg}; border: 2px solid {tier_color}; border-radius: 50%;
+                            display: flex; align-items: center; justify-content: center; color: {tier_color}; font-size: 20px; font-weight: 700;">{tier_icon}</div>
+                <div>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span style="font-size: 13px; color: #71717a; font-weight: 500;">QA Score</span>
+                        <span style="font-size: 22px; font-weight: 700; color: {tier_color};">{qa_score}%</span>
+                        <span style="background: {tier_color}; color: #000000; font-size: 11px; font-weight: 700;
+                                     padding: 4px 10px; border-radius: 4px; margin-left: 4px;">{tier_status}</span>
                     </div>
+                    <div style="font-size: 12px; color: #a1a1aa; margin-top: 4px;">{tier_label}</div>
                 </div>
-                <div style="font-size: 24px; font-weight: 700; color: #ef4444;">{score}%</div>
+            </div>
+            <div style="text-align: right;">
+                <div style="font-family: monospace; font-size: 14px; letter-spacing: 1px;">{progress_bar}</div>
+                <div style="font-size: 11px; color: #71717a; margin-top: 4px;">{failures} fails · {warnings} warnings</div>
             </div>
         </div>
-        """, unsafe_allow_html=True)
+    </div>
+    """, unsafe_allow_html=True)
 
     # =============================================
     # VIDEO PLAYER + ISSUE TIMELINE
