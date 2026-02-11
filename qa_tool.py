@@ -1793,7 +1793,7 @@ def render_footer():
                 <div style="font-size: 11px; color: #71717a; text-transform: uppercase; letter-spacing: 0.05em;">Time Saved</div>
             </div>
         </div>
-        <p style="text-align: center; font-size: 11px; color: #71717a !important; letter-spacing: 0.05em;">Proof by Aerial Canvas · Beta v1.8</p>
+        <p style="text-align: center; font-size: 11px; color: #71717a !important; letter-spacing: 0.05em;">Proof by Aerial Canvas · Beta v1.9</p>
     </div>
     """, unsafe_allow_html=True)
 
@@ -5691,31 +5691,11 @@ def create_timeline_markers_html(duration: float, markers: list, selected_idx: i
         z = 30 if is_sel else 20
         glow = f"0 0 10px {m['color']}" if is_sel else f"0 0 5px {m['color']}60"
 
-        markers_html += f'''
-            <div style="position: absolute; left: {pos_pct}%; top: 50%; transform: translate(-50%, -50%);
-                        width: {size}px; height: {size}px; background: {m['color']}; border-radius: 50%;
-                        border: {border}; z-index: {z}; box-shadow: {glow};
-                        transition: transform 0.15s;"
-                 title="{m['label']} @ {int(m['timestamp']//60)}:{int(m['timestamp']%60):02d}">
-            </div>
-        '''
+        time_str = f"{int(m['timestamp']//60)}:{int(m['timestamp']%60):02d}"
+        markers_html += f'<div style="position: absolute; left: {pos_pct}%; top: 50%; transform: translate(-50%, -50%); width: {size}px; height: {size}px; background: {m["color"]}; border-radius: 50%; border: {border}; z-index: {z}; box-shadow: {glow};" title="{m["label"]} @ {time_str}"></div>'
 
-    html = f'''
-    <div style="position: relative; background: #111; border-radius: 10px; height: 44px;
-                border: 1px solid #1d1d1f; margin: 12px 0 16px 0; padding: 0 8px;">
-        <!-- Track line -->
-        <div style="position: absolute; top: 50%; left: 24px; right: 24px; height: 6px;
-                    background: #1d1d1f; border-radius: 3px; transform: translateY(-50%);">
-        </div>
-        <!-- Time labels -->
-        <div style="position: absolute; left: 24px; bottom: 6px; color: #52525b; font-size: 10px; font-family: 'Poppins', monospace;">0:00</div>
-        <div style="position: absolute; right: 24px; bottom: 6px; color: #52525b; font-size: 10px; font-family: 'Poppins', monospace;">{int(duration//60)}:{int(duration%60):02d}</div>
-        <!-- Markers container -->
-        <div style="position: absolute; left: 24px; right: 24px; top: 0; bottom: 0;">
-            {markers_html}
-        </div>
-    </div>
-    '''
+    end_time = f"{int(duration//60)}:{int(duration%60):02d}"
+    html = f'''<div style="position: relative; background: #111; border-radius: 10px; height: 44px; border: 1px solid #1d1d1f; margin: 12px 0 16px 0; padding: 0 8px;"><div style="position: absolute; top: 50%; left: 24px; right: 24px; height: 6px; background: #1d1d1f; border-radius: 3px; transform: translateY(-50%);"></div><div style="position: absolute; left: 24px; bottom: 6px; color: #52525b; font-size: 10px;">0:00</div><div style="position: absolute; right: 24px; bottom: 6px; color: #52525b; font-size: 10px;">{end_time}</div><div style="position: absolute; left: 24px; right: 24px; top: 0; bottom: 0;">{markers_html}</div></div>'''
     return html
 
 
@@ -5986,6 +5966,42 @@ def display_video_review_interface(report: QAReport, video_path: str = None, sho
                     <div style="color: #d4d4d8; font-size: 12px;">{issue.action}</div>
                 </div>
                 """, unsafe_allow_html=True)
+
+            # Special handling for Log Footage Detection - allow user to mark detections
+            if issue.check_name == "Log Footage Detection" and "locations" in issue.message:
+                st.markdown("""
+                <div style="margin-top: 16px; padding-top: 12px; border-top: 1px solid #1d1d1f;">
+                    <div style="color: #fff; font-size: 13px; font-weight: 600; margin-bottom: 8px;">Help Train the AI</div>
+                    <div style="color: #71717a; font-size: 11px; margin-bottom: 12px;">Mark each detection as correct or incorrect to improve accuracy.</div>
+                </div>
+                """, unsafe_allow_html=True)
+
+                # Parse timestamps from action field (format: "Apply color grade at: 0:12.34, 0:24.56, ...")
+                if issue.action and ":" in issue.action:
+                    import re
+                    timestamps = re.findall(r'(\d+:\d+\.\d+)', issue.action)
+
+                    for ts_idx, ts in enumerate(timestamps[:6]):  # Limit to 6 to avoid UI overflow
+                        col_ts, col_correct, col_wrong = st.columns([2, 1, 1])
+                        with col_ts:
+                            st.markdown(f"<div style='padding: 8px 0; color: #a1a1aa;'>@ {ts}</div>", unsafe_allow_html=True)
+                        with col_correct:
+                            if st.button("Correct", key=f"log_correct_{report_key}_{ts_idx}", type="primary", use_container_width=True):
+                                try:
+                                    from database import learning_db
+                                    # Get approximate contrast/saturation values (stored in message or use defaults)
+                                    learning_db.save_video_detection_feedback("log_footage", 30, 20, True)
+                                    st.success("Marked as correct log footage")
+                                except Exception:
+                                    pass
+                        with col_wrong:
+                            if st.button("Not Log", key=f"log_wrong_{report_key}_{ts_idx}", use_container_width=True):
+                                try:
+                                    from database import learning_db
+                                    learning_db.save_video_detection_feedback("log_footage", 30, 20, False)
+                                    st.info("Marked as false positive")
+                                except Exception:
+                                    pass
 
             # Navigation buttons
             nav_col1, nav_col2, nav_col3 = st.columns([1, 2, 1])
