@@ -1793,7 +1793,7 @@ def render_footer():
                 <div style="font-size: 11px; color: #71717a; text-transform: uppercase; letter-spacing: 0.05em;">Time Saved</div>
             </div>
         </div>
-        <p style="text-align: center; font-size: 11px; color: #71717a !important; letter-spacing: 0.05em;">Proof by Aerial Canvas · Beta v1.9</p>
+        <p style="text-align: center; font-size: 11px; color: #71717a !important; letter-spacing: 0.05em;">Proof by Aerial Canvas · Beta v2.0</p>
     </div>
     """, unsafe_allow_html=True)
 
@@ -3014,11 +3014,11 @@ def check_audio_levels(file_path: str) -> QAIssue:
 
         issues = []
 
-        # Check for clipping (max volume at or above 0 dB)
-        if max_volume >= -0.5:
+        # Check for clipping (only at or above 0 dB is actual clipping)
+        if max_volume >= 0.0:
             issues.append(f"CLIPPING detected (peak: {max_volume:.1f} dB)")
-        elif max_volume >= -3:
-            issues.append(f"Peaks near clipping ({max_volume:.1f} dB)")
+        elif max_volume >= -1.0:
+            issues.append(f"Peaks very close to clipping ({max_volume:.1f} dB)")
 
         # Check for audio too quiet
         if mean_volume < -30:
@@ -3036,7 +3036,7 @@ def check_audio_levels(file_path: str) -> QAIssue:
                 status="pass",
                 message=f"Good levels (peak: {max_volume:.1f} dB, avg: {mean_volume:.1f} dB)"
             )
-        elif max_volume >= -0.5 or mean_volume < -30:
+        elif max_volume >= 0.0 or mean_volume < -30:
             return QAIssue(
                 check_name="Audio Levels",
                 status="fail",
@@ -5810,7 +5810,7 @@ def display_video_review_interface(report: QAReport, video_path: str = None, sho
                     <div style="display: flex; align-items: center; gap: 10px;">
                         <span style="font-size: 13px; color: #71717a; font-weight: 500;">QA Score</span>
                         <span style="font-size: 22px; font-weight: 700; color: {tier_color};">{qa_score}%</span>
-                        <span style="background: {tier_color}; color: #000000; font-size: 11px; font-weight: 700;
+                        <span style="background: {tier_color}; color: #000 !important; -webkit-text-fill-color: #000; font-size: 11px; font-weight: 700;
                                      padding: 4px 10px; border-radius: 4px; margin-left: 4px;">{tier_status}</span>
                     </div>
                     <div style="font-size: 12px; color: #a1a1aa; margin-top: 4px;">{tier_label}</div>
@@ -5853,19 +5853,37 @@ def display_video_review_interface(report: QAReport, video_path: str = None, sho
         duration_fmt = report.metadata.get('duration_formatted', format_timestamp_short(duration))
         resolution = f"{report.metadata.get('width', '?')}x{report.metadata.get('height', '?')}"
         fps = report.metadata.get('fps', '?')
+        filename = report.metadata.get('filename', report.metadata.get('original_filename', 'Unknown'))
+        file_size_bytes = report.metadata.get('file_size', 0)
+        if file_size_bytes > 1024 * 1024 * 1024:
+            file_size = f"{file_size_bytes / (1024*1024*1024):.1f} GB"
+        elif file_size_bytes > 1024 * 1024:
+            file_size = f"{file_size_bytes / (1024*1024):.1f} MB"
+        elif file_size_bytes > 0:
+            file_size = f"{file_size_bytes / 1024:.0f} KB"
+        else:
+            file_size = ""
+
+        # Truncate long filenames
+        display_filename = filename[:50] + "..." if len(filename) > 50 else filename
 
         st.markdown(f"""
-        <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 16px;
-                    background: #0d0d0d; border: 1px solid #1d1d1f; border-radius: 8px; margin-bottom: 16px;">
-            <div style="display: flex; gap: 16px; font-size: 11px; color: #71717a; align-items: center;">
-                <span style="color: #a1a1aa; font-weight: 500;">{resolution} · {fps}fps · {duration_fmt}</span>
-                <span style="color: #333;">|</span>
-                <span style="display: flex; align-items: center; gap: 5px;">{color_dot('#ef4444', 8)}Critical</span>
-                <span style="display: flex; align-items: center; gap: 5px;">{color_dot('#f59e0b', 8)}Audio</span>
-                <span style="display: flex; align-items: center; gap: 5px;">{color_dot('#3b82f6', 8)}Color</span>
-                <span style="display: flex; align-items: center; gap: 5px;">{color_dot('#a855f7', 8)}Motion</span>
+        <div style="background: #0d0d0d; border: 1px solid #1d1d1f; border-radius: 8px; margin-bottom: 16px; padding: 12px 16px;">
+            <div style="color: #fff; font-size: 13px; font-weight: 600; margin-bottom: 8px; word-break: break-all;">{display_filename}</div>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div style="display: flex; gap: 12px; font-size: 11px; color: #71717a; align-items: center; flex-wrap: wrap;">
+                    <span style="color: #a1a1aa;">{resolution}</span>
+                    <span style="color: #a1a1aa;">{fps}fps</span>
+                    <span style="color: #a1a1aa;">{duration_fmt}</span>
+                    {f'<span style="color: #a1a1aa;">{file_size}</span>' if file_size else ''}
+                    <span style="color: #333;">|</span>
+                    <span style="display: flex; align-items: center; gap: 4px;">{color_dot('#ef4444', 6)}Critical</span>
+                    <span style="display: flex; align-items: center; gap: 4px;">{color_dot('#f59e0b', 6)}Audio</span>
+                    <span style="display: flex; align-items: center; gap: 4px;">{color_dot('#3b82f6', 6)}Color</span>
+                    <span style="display: flex; align-items: center; gap: 4px;">{color_dot('#a855f7', 6)}Motion</span>
+                </div>
+                <span style="color: #71717a; font-size: 11px; font-weight: 500;">{len(timeline_issues)} issues found</span>
             </div>
-            <span style="color: #71717a; font-size: 11px; font-weight: 500;">{len(timeline_issues)} issues found</span>
         </div>
         """, unsafe_allow_html=True)
 
@@ -5924,9 +5942,9 @@ def display_video_review_interface(report: QAReport, video_path: str = None, sho
             <div style="background: #111; border: 1px solid #1d1d1f; border-radius: 12px;
                         padding: 16px 20px; margin-top: 16px;">
                 <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid #1d1d1f;">
-                    <span style="background: {cat_info['bg']}; color: #000000 !important; padding: 4px 10px; border-radius: 6px;
+                    <span style="background: {cat_info['bg']}; color: #000 !important; -webkit-text-fill-color: #000; padding: 4px 10px; border-radius: 6px;
                                  font-size: 11px; font-weight: 700;">{cat_info['label'].upper()}</span>
-                    <span style="background: {sev_bg}; color: #000000 !important; padding: 4px 10px; border-radius: 6px;
+                    <span style="background: {sev_bg}; color: #000 !important; -webkit-text-fill-color: #000; padding: 4px 10px; border-radius: 6px;
                                  font-size: 11px; font-weight: 700;">{sev_label}</span>
                     <span style="color: #71717a; font-size: 11px; margin-left: auto;">Issue {selected_idx + 1} of {len(timeline_issues)}</span>
                 </div>
@@ -6052,8 +6070,9 @@ def display_video_review_interface(report: QAReport, video_path: str = None, sho
             st.markdown(f"""
             <div style="background: #111; border: 1px solid #1d1d1f; border-radius: 8px; padding: 14px 16px; margin-top: 8px;">
                 <div style="display: flex; align-items: flex-start; gap: 12px;">
-                    <span style="background: {severity_color}; color: #000000 !important; font-size: 11px; font-weight: 700;
-                                 padding: 4px 10px; border-radius: 4px; flex-shrink: 0; letter-spacing: 0.02em;">{severity_label}</span>
+                    <div style="background: {severity_color}; padding: 4px 10px; border-radius: 4px; flex-shrink: 0;">
+                        <span style="color: #000 !important; font-size: 11px; font-weight: 700; letter-spacing: 0.02em; -webkit-text-fill-color: #000;">{severity_label}</span>
+                    </div>
                     <div style="flex: 1; min-width: 0;">
                         <div style="color: #fff; font-weight: 600; font-size: 13px; margin-bottom: 4px;">{issue.check_name}</div>
                         <div style="color: #a1a1aa; font-size: 12px; line-height: 1.4;">{short_msg}</div>
