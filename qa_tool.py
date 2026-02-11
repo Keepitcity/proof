@@ -1793,7 +1793,7 @@ def render_footer():
                 <div style="font-size: 11px; color: #71717a; text-transform: uppercase; letter-spacing: 0.05em;">Time Saved</div>
             </div>
         </div>
-        <p style="text-align: center; font-size: 11px; color: #71717a !important; letter-spacing: 0.05em;">Proof by Aerial Canvas · Beta v1.5.1</p>
+        <p style="text-align: center; font-size: 11px; color: #71717a !important; letter-spacing: 0.05em;">Proof by Aerial Canvas · Beta v1.6</p>
     </div>
     """, unsafe_allow_html=True)
 
@@ -5701,18 +5701,17 @@ def create_timeline_markers_html(duration: float, markers: list, selected_idx: i
         '''
 
     html = f'''
-    <div style="position: relative; background: linear-gradient(90deg, #1a1a1a, #252525, #1a1a1a);
-                border-radius: 10px; height: 36px; border: 1px solid #333; margin: 4px 0;">
+    <div style="position: relative; background: #111; border-radius: 10px; height: 44px;
+                border: 1px solid #1d1d1f; margin: 12px 0 16px 0; padding: 0 8px;">
         <!-- Track line -->
-        <div style="position: absolute; top: 50%; left: 16px; right: 16px; height: 4px;
-                    background: linear-gradient(90deg, #333 0%, #444 50%, #333 100%); border-radius: 2px;
-                    transform: translateY(-50%);">
+        <div style="position: absolute; top: 50%; left: 24px; right: 24px; height: 6px;
+                    background: #1d1d1f; border-radius: 3px; transform: translateY(-50%);">
         </div>
         <!-- Time labels -->
-        <div style="position: absolute; left: 16px; bottom: 4px; color: #52525b; font-size: 10px; font-family: monospace;">0:00</div>
-        <div style="position: absolute; right: 16px; bottom: 4px; color: #52525b; font-size: 10px; font-family: monospace;">{int(duration//60)}:{int(duration%60):02d}</div>
+        <div style="position: absolute; left: 24px; bottom: 6px; color: #52525b; font-size: 10px; font-family: 'Poppins', monospace;">0:00</div>
+        <div style="position: absolute; right: 24px; bottom: 6px; color: #52525b; font-size: 10px; font-family: 'Poppins', monospace;">{int(duration//60)}:{int(duration%60):02d}</div>
         <!-- Markers container -->
-        <div style="position: absolute; left: 16px; right: 16px; top: 0; bottom: 0;">
+        <div style="position: absolute; left: 24px; right: 24px; top: 0; bottom: 0;">
             {markers_html}
         </div>
     </div>
@@ -5848,16 +5847,17 @@ def display_video_review_interface(report: QAReport, video_path: str = None, sho
         fps = report.metadata.get('fps', '?')
 
         st.markdown(f"""
-        <div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 0 8px;">
-            <div style="display: flex; gap: 12px; font-size: 10px; color: #71717a;">
-                <span>{resolution} · {fps}fps · {duration_fmt}</span>
-                <span style="color: #52525b;">|</span>
-                <span style="display: flex; align-items: center; gap: 4px;">{color_dot('#ef4444', 6)}Critical</span>
-                <span style="display: flex; align-items: center; gap: 4px;">{color_dot('#f59e0b', 6)}Audio</span>
-                <span style="display: flex; align-items: center; gap: 4px;">{color_dot('#3b82f6', 6)}Color</span>
-                <span style="display: flex; align-items: center; gap: 4px;">{color_dot('#a855f7', 6)}Motion</span>
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 16px;
+                    background: #0d0d0d; border: 1px solid #1d1d1f; border-radius: 8px; margin-bottom: 16px;">
+            <div style="display: flex; gap: 16px; font-size: 11px; color: #71717a; align-items: center;">
+                <span style="color: #a1a1aa; font-weight: 500;">{resolution} · {fps}fps · {duration_fmt}</span>
+                <span style="color: #333;">|</span>
+                <span style="display: flex; align-items: center; gap: 5px;">{color_dot('#ef4444', 8)}Critical</span>
+                <span style="display: flex; align-items: center; gap: 5px;">{color_dot('#f59e0b', 8)}Audio</span>
+                <span style="display: flex; align-items: center; gap: 5px;">{color_dot('#3b82f6', 8)}Color</span>
+                <span style="display: flex; align-items: center; gap: 5px;">{color_dot('#a855f7', 8)}Motion</span>
             </div>
-            <span style="color: #52525b; font-size: 10px;">{len(timeline_issues)} issues found</span>
+            <span style="color: #71717a; font-size: 11px; font-weight: 500;">{len(timeline_issues)} issues found</span>
         </div>
         """, unsafe_allow_html=True)
 
@@ -5865,6 +5865,12 @@ def display_video_review_interface(report: QAReport, video_path: str = None, sho
     # CLICKABLE ISSUE BUTTONS (select which issue to view)
     # =============================================
     if timeline_issues:
+        st.markdown("""
+        <div style="margin-bottom: 12px;">
+            <span style="color: #71717a; font-size: 12px; font-weight: 500;">Jump to issue:</span>
+        </div>
+        """, unsafe_allow_html=True)
+
         num_issues = len(timeline_issues)
         if num_issues <= 6:
             cols = st.columns(num_issues)
@@ -5911,18 +5917,19 @@ def display_video_review_interface(report: QAReport, video_path: str = None, sho
                 sev_label = "WARNING"
 
             st.markdown(f"""
-            <div style="background: {sev_bg}; border: 1px solid {sev_border}; border-radius: 10px;
-                        padding: 14px; margin-top: 12px;">
-                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
-                    <span style="background: {cat_info['bg']}; color: #fff; padding: 3px 8px; border-radius: 12px;
-                                 font-size: 10px; font-weight: 600;">{cat_info['label'].upper()}</span>
-                    <span style="color: {sev_text}; font-size: 10px; font-weight: 600;">{sev_label}</span>
-                    <span style="color: #52525b; font-size: 10px; margin-left: auto;">Issue {selected_idx + 1} of {len(timeline_issues)}</span>
+            <div style="background: #111; border: 1px solid #1d1d1f; border-radius: 12px;
+                        padding: 16px 20px; margin-top: 16px;">
+                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid #1d1d1f;">
+                    <span style="background: {cat_info['bg']}; color: #fff; padding: 4px 10px; border-radius: 6px;
+                                 font-size: 11px; font-weight: 600;">{cat_info['label'].upper()}</span>
+                    <span style="background: {sev_bg}; color: {sev_text}; padding: 4px 10px; border-radius: 6px;
+                                 font-size: 11px; font-weight: 600; border: 1px solid {sev_border};">{sev_label}</span>
+                    <span style="color: #52525b; font-size: 11px; margin-left: auto;">Issue {selected_idx + 1} of {len(timeline_issues)}</span>
                 </div>
-                <div style="color: #fff; font-weight: 600; font-size: 14px; margin-bottom: 6px;">{issue.check_name}</div>
-                <div style="color: #a1a1aa; font-size: 12px; line-height: 1.5; margin-bottom: 10px;">{issue.message}</div>
-                <div style="display: flex; align-items: center; gap: 8px; color: #71717a; font-size: 11px;">
-                    <span style="background: #27272a; padding: 4px 8px; border-radius: 6px; font-family: monospace;">@ {timestamp}</span>
+                <div style="color: #fff; font-weight: 600; font-size: 15px; margin-bottom: 8px;">{issue.check_name}</div>
+                <div style="color: #a1a1aa; font-size: 13px; line-height: 1.6; margin-bottom: 12px;">{issue.message}</div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span style="background: #1d1d1f; color: #71717a; padding: 6px 10px; border-radius: 6px; font-size: 11px; font-family: 'Poppins', monospace;">Timestamp: {timestamp}</span>
                 </div>
             </div>
             """, unsafe_allow_html=True)
@@ -5970,48 +5977,52 @@ def display_video_review_interface(report: QAReport, video_path: str = None, sho
                         st.rerun()
 
     # =============================================
-    # GENERAL ISSUES - COMPACT VIEW (one line per issue)
+    # GENERAL ISSUES - CLEAN CARD VIEW
     # =============================================
     if general_issues:
+        # Count fails vs warnings
+        fail_count = sum(1 for i in general_issues if i.status == 'fail')
+        warn_count = len(general_issues) - fail_count
+
         st.markdown(f"""
-        <div style="margin-top: 24px; background: #111; border: 1px solid #1d1d1f; border-radius: 12px; padding: 16px;">
-            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid #1d1d1f;">
-                {icon('info', 16)}
-                <span style="color: #fff; font-weight: 600; font-size: 14px;">Issues Summary</span>
-                <span style="color: #71717a; font-size: 11px;">({len(general_issues)} items)</span>
+        <div style="margin-top: 24px; background: #0d0d0d; border: 1px solid #1d1d1f; border-radius: 12px; overflow: hidden;">
+            <div style="padding: 16px 20px; border-bottom: 1px solid #1d1d1f; background: #111;">
+                <div style="display: flex; align-items: center; justify-content: space-between;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span style="color: #fff; font-weight: 600; font-size: 15px;">Issues Summary</span>
+                    </div>
+                    <div style="display: flex; gap: 12px;">
+                        <span style="color: #ef4444; font-size: 12px; font-weight: 500;">{fail_count} fails</span>
+                        <span style="color: #f59e0b; font-size: 12px; font-weight: 500;">{warn_count} warnings</span>
+                    </div>
+                </div>
             </div>
+        </div>
         """, unsafe_allow_html=True)
 
-        # Build compact issue rows
-        for issue in general_issues:
+        # Build clean issue cards
+        for idx, issue in enumerate(general_issues):
             severity_color = "#ef4444" if issue.status == 'fail' else "#f59e0b"
             severity_label = "FAIL" if issue.status == 'fail' else "WARN"
+            severity_bg = "rgba(239, 68, 68, 0.08)" if issue.status == 'fail' else "rgba(245, 158, 11, 0.08)"
 
-            # Truncate long messages
-            short_msg = issue.message[:80] + "..." if len(issue.message) > 80 else issue.message
-            fix_hint = f" → {issue.action[:60]}..." if issue.action and len(issue.action) > 60 else (f" → {issue.action}" if issue.action else "")
+            # Clean message display
+            short_msg = issue.message[:100] + "..." if len(issue.message) > 100 else issue.message
+            fix_hint = issue.action if issue.action else ""
 
             st.markdown(f"""
-            <div style="display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.03);">
-                <span style="background: {severity_color}; color: #000; font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 4px; min-width: 32px; text-align: center;">{severity_label}</span>
-                <span style="color: #fff; font-weight: 500; font-size: 13px; min-width: 120px;">{issue.check_name}</span>
-                <span style="color: #a1a1aa; font-size: 12px; flex: 1;">{short_msg}</span>
-                <span style="color: #7B8CDE; font-size: 11px;">{fix_hint}</span>
+            <div style="background: #111; border: 1px solid #1d1d1f; border-radius: 8px; padding: 14px 16px; margin-top: 8px;">
+                <div style="display: flex; align-items: flex-start; gap: 12px;">
+                    <span style="background: {severity_color}; color: #000; font-size: 10px; font-weight: 700;
+                                 padding: 3px 8px; border-radius: 4px; flex-shrink: 0;">{severity_label}</span>
+                    <div style="flex: 1; min-width: 0;">
+                        <div style="color: #fff; font-weight: 600; font-size: 13px; margin-bottom: 4px;">{issue.check_name}</div>
+                        <div style="color: #a1a1aa; font-size: 12px; line-height: 1.4;">{short_msg}</div>
+                        {f'<div style="color: #7B8CDE; font-size: 11px; margin-top: 8px; padding: 8px 10px; background: rgba(123, 140, 222, 0.08); border-radius: 6px; border-left: 2px solid #7B8CDE;"><strong>Fix:</strong> {fix_hint}</div>' if fix_hint else ''}
+                    </div>
+                </div>
             </div>
             """, unsafe_allow_html=True)
-
-        st.markdown("</div>", unsafe_allow_html=True)
-
-        # Expandable details for those who want more info
-        with st.expander("View detailed fixes", expanded=False):
-            for issue in general_issues:
-                if issue.action:
-                    st.markdown(f"""
-                    <div style="padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.05);">
-                        <span style="color: #fff; font-weight: 500;">{issue.check_name}:</span>
-                        <span style="color: #a1a1aa; font-size: 13px;"> {issue.action}</span>
-                    </div>
-                    """, unsafe_allow_html=True)
 
     # =============================================
     # PASSED CHECKS (collapsed)
@@ -11531,38 +11542,38 @@ def main():
     .stProgress > div > div { background: #1d1d1f !important; }
     .stProgress > div > div > div { background: #7B8CDE !important; }
 
-    /* Range Slider - Integrated Trim Bar Style */
+    /* Range Slider - Clean style (no negative margins) */
     .stSlider {
-        margin-top: -28px !important;  /* Overlay on visual bar */
-        position: relative !important;
-        z-index: 10 !important;
+        margin-top: 8px !important;
+        margin-bottom: 8px !important;
     }
     .stSlider > div > div > div {
-        background: transparent !important;  /* Hide track - visual bar shows through */
-        height: 24px !important;
+        background: #1d1d1f !important;
+        height: 8px !important;
+        border-radius: 4px !important;
     }
     .stSlider > div > div > div > div {
-        background: transparent !important;  /* Hide fill - visual bar shows through */
+        background: #7B8CDE !important;
+        border-radius: 4px !important;
     }
     .stSlider [data-testid="stThumbValue"] {
         color: #fff !important;
         background: #161616 !important;
-        border: 1px solid #4ade80 !important;
+        border: 1px solid #7B8CDE !important;
         border-radius: 4px !important;
         padding: 2px 6px !important;
         font-size: 11px !important;
     }
-    /* Slider thumbs - white circles with green border */
+    /* Slider thumbs - brand purple style */
     .stSlider > div > div > div > div > div {
         background: #fff !important;
-        border: 3px solid #4ade80 !important;
-        box-shadow: 0 2px 6px rgba(0,0,0,0.5) !important;
-        width: 18px !important;
-        height: 18px !important;
-        top: 3px !important;
+        border: 2px solid #7B8CDE !important;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.3) !important;
+        width: 16px !important;
+        height: 16px !important;
     }
     .stSlider > div > div > div > div > div:hover {
-        background: #4ade80 !important;
+        background: #7B8CDE !important;
         transform: scale(1.1);
     }
 
