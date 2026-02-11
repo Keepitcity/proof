@@ -44,7 +44,7 @@ except ImportError:
 DROPBOX_APP_KEY = "ta9b2km6af2j2h4"
 DROPBOX_APP_SECRET = "wknntqselzkuqof"
 # Permanent refresh token for Aerial Canvas team account (hello@aerialcanvas.com)
-DROPBOX_REFRESH_TOKEN = "RuUb2zgbOpcAAAAAAAAAASo9Ers5N4blrjJQwmxT1dR946ljVQv-HrNvC6c8D8-Q"
+DROPBOX_REFRESH_TOKEN = "cdDHvuUtSaMAAAAAAAAAAXzQvVUR4-GnbOo-nC-_UgeCKyjsV7eOnLXAetCui0Z6"
 
 def get_dropbox_auth_flow():
     """Create Dropbox OAuth flow"""
