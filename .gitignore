@@ -1,0 +1,52 @@
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+*.py[cod]
+*.so
+.Python
+env/
+venv/
+.env
+
+# Test files and samples (too large for GitHub)
+*.mp4
+*.mov
+*.pdf
+*.rtf
+
+# Screenshots (development only)
+Screen Shot*.png
+
+# Sample images (development only)
+log.png
+LOGG.png
+709.png
+70990.png
+
+# Database (each deployment should have its own)
+qa_feedback.db
+qa_stats.db
+users.db
+
+# Streamlit secrets (contains OAuth credentials)
+.streamlit/secrets.toml
+
+# Development files
+calibrate_log_detection.py
+test_qa.py
+QA_Tool_Spec_v1.md
+
+# Training images (too large for GitHub)
+LivingRooms/
+Bathrooms/
+Kitchens/
+Bedrooms/
+
+# Backup files
+*_backup_*.py
+
+# YOLO model (will be downloaded automatically)
+yolov8n.pt
+client_secret_*.json
