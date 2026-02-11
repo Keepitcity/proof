@@ -1793,7 +1793,7 @@ def render_footer():
                 <div style="font-size: 11px; color: #71717a; text-transform: uppercase; letter-spacing: 0.05em;">Time Saved</div>
             </div>
         </div>
-        <p style="text-align: center; font-size: 11px; color: #71717a !important; letter-spacing: 0.05em;">Proof by Aerial Canvas · Beta v1.4</p>
+        <p style="text-align: center; font-size: 11px; color: #71717a !important; letter-spacing: 0.05em;">Proof by Aerial Canvas · Beta v1.5</p>
     </div>
     """, unsafe_allow_html=True)
 
@@ -2963,7 +2963,7 @@ def check_beat_sync(file_path: str, duration: float) -> QAIssue:
                 message=f"Great rhythm! {sync_percentage:.0f}% of cuts sync with music"
             )
         elif sync_percentage >= 50:
-            timestamps = [f"⏱️ {int(t//60)}:{t%60:05.2f}" for t in off_beat_cuts[:3]]
+            timestamps = [f"[T] {int(t//60)}:{t%60:05.2f}" for t in off_beat_cuts[:3]]
             return QAIssue(
                 check_name="Beat Sync",
                 status="warning",
@@ -2971,7 +2971,7 @@ def check_beat_sync(file_path: str, duration: float) -> QAIssue:
                 action="Consider adjusting these cuts to hit beats:\n" + "\n".join(timestamps)
             )
         else:
-            timestamps = [f"⏱️ {int(t//60)}:{t%60:05.2f}" for t in off_beat_cuts[:5]]
+            timestamps = [f"[T] {int(t//60)}:{t%60:05.2f}" for t in off_beat_cuts[:5]]
             return QAIssue(
                 check_name="Beat Sync",
                 status="fail",
@@ -8534,7 +8534,7 @@ def display_auto_sort():
         )
 
         # Analyze button - always visible
-        analyze_clicked = st.button("🔍 Analyze & Preview Sort Order", key="btn_photo_sort_autosort", use_container_width=True, type="primary")
+        analyze_clicked = st.button("Analyze & Preview Sort Order", key="btn_photo_sort_autosort", use_container_width=True, type="primary")
 
         if analyze_clicked and not photo_sort_link:
             st.warning("Please paste a Dropbox folder link first")
@@ -8669,6 +8669,25 @@ def display_auto_sort():
             room_options = list(ROOM_TYPES.keys())
             room_labels = {k: ROOM_TYPES[k].get('name', k) for k in room_options}
 
+            # Add lightbox container (only once at top)
+            st.markdown("""
+            <div id="photo-lightbox" class="lightbox-overlay" onclick="this.classList.remove('active')">
+                <span class="lightbox-close" onclick="document.getElementById('photo-lightbox').classList.remove('active')">&times;</span>
+                <img id="lightbox-img" class="lightbox-image" src="" alt="Enlarged photo">
+            </div>
+            <script>
+            function openLightbox(imgSrc) {
+                document.getElementById('lightbox-img').src = imgSrc;
+                document.getElementById('photo-lightbox').classList.add('active');
+            }
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') {
+                    document.getElementById('photo-lightbox').classList.remove('active');
+                }
+            });
+            </script>
+            """, unsafe_allow_html=True)
+
             # Use a form to prevent reruns on every dropdown change
             with st.form(key="photo_edit_form"):
                 # Compact layout - image on left, info on right
@@ -8677,12 +8696,24 @@ def display_auto_sort():
                     img_col, info_col = st.columns([1, 2])
 
                     with img_col:
-                        # Clickable image - shows in expander for enlargement
+                        # Clickable thumbnail - opens in lightbox
                         if p.get('image_bytes'):
-                            with st.expander(f"📷 Photo {idx + 1}", expanded=True):
-                                st.image(p['image_bytes'], use_container_width=True)
+                            import base64 as b64
+                            img_b64 = b64.b64encode(p['image_bytes']).decode()
+                            st.markdown(f"""
+                            <div style="padding: 4px;">
+                                <img src="data:image/jpeg;base64,{img_b64}"
+                                     class="photo-thumbnail"
+                                     style="width: 100%; border-radius: 8px;"
+                                     onclick="openLightbox('data:image/jpeg;base64,{img_b64}')"
+                                     title="Click to enlarge">
+                                <div style="text-align: center; margin-top: 4px;">
+                                    <span style="color: #71717a; font-size: 10px;">Click to enlarge</span>
+                                </div>
+                            </div>
+                            """, unsafe_allow_html=True)
                         else:
-                            st.markdown("📷 Preview unavailable")
+                            st.markdown('<div style="color: #71717a; padding: 20px; text-align: center; background: #111; border-radius: 8px;"><span class="icon-badge">?</span> Preview unavailable</div>', unsafe_allow_html=True)
 
                     with info_col:
                         # Original filename
@@ -8728,16 +8759,24 @@ def display_auto_sort():
                     st.markdown("---")
 
                 # Submit button inside the form
-                submitted = st.form_submit_button("🔄 Apply Changes & Re-sort", use_container_width=True, type="primary")
+                submitted = st.form_submit_button("Apply Changes & Re-sort", use_container_width=True, type="primary")
 
             # Process form submission
             if submitted:
                 num_photos = len(st.session_state['photo_sort_results'])
+
+                # Progress UI
+                st.markdown("---")
                 progress_bar = st.progress(0)
                 status = st.empty()
+                detail_status = st.empty()
                 corrections_saved = 0
 
-                status.markdown(f"**Updating room types for {num_photos} photos...**")
+                import time as t
+                start_time = t.time()
+
+                status.markdown(f"**Analyzing {num_photos} photos...**")
+                detail_status.markdown(f"<span style='color: #71717a; font-size: 12px;'>Step 1 of 4: Updating room classifications</span>", unsafe_allow_html=True)
 
                 # First, update room types from form values and save corrections for learning
                 for idx in range(num_photos):
@@ -8764,10 +8803,12 @@ def display_auto_sort():
                     progress_bar.progress(0.1 + (0.15 * (idx + 1) / num_photos))
 
                 if corrections_saved > 0:
-                    status.markdown(f"**Learning from {corrections_saved} corrections...** 🧠")
+                    status.markdown(f"**Learning from {corrections_saved} correction(s)...**")
+                    detail_status.markdown(f"<span style='color: #71717a; font-size: 12px;'>Step 2 of 4: AI learning from your feedback</span>", unsafe_allow_html=True)
                     progress_bar.progress(0.3)
 
-                status.markdown(f"**Sorting {num_photos} photos...** (applying room flow order)")
+                status.markdown(f"**Sorting {num_photos} photos...**")
+                detail_status.markdown(f"<span style='color: #71717a; font-size: 12px;'>Step 3 of 4: Applying room flow order</span>", unsafe_allow_html=True)
                 progress_bar.progress(0.4)
 
                 # Re-sort based on updated room types
@@ -8775,7 +8816,8 @@ def display_auto_sort():
 
                 # Preserve image bytes and original predictions
                 progress_bar.progress(0.6)
-                status.markdown(f"**Preserving image data...** ({num_photos} photos)")
+                status.markdown(f"**Finalizing {num_photos} photos...**")
+                detail_status.markdown(f"<span style='color: #71717a; font-size: 12px;'>Step 4 of 4: Preserving image data</span>", unsafe_allow_html=True)
                 for i, p in enumerate(resorted):
                     if i < len(st.session_state['photo_sort_results']):
                         # Find original by filename and copy image bytes
@@ -8788,10 +8830,14 @@ def display_auto_sort():
                     progress_bar.progress(0.6 + (0.35 * (i + 1) / num_photos))
 
                 progress_bar.progress(1.0)
+                elapsed = t.time() - start_time
                 if corrections_saved > 0:
-                    status.markdown(f"**✅ Done!** Learned from {corrections_saved} corrections. Refreshing...")
+                    status.markdown(f"**Complete.** Learned from {corrections_saved} correction(s).")
+                    detail_status.markdown(f"<span style='color: #4ade80; font-size: 12px;'>Processed in {elapsed:.1f}s — Ready to download</span>", unsafe_allow_html=True)
                 else:
-                    status.markdown("**✅ Done!** Refreshing view...")
+                    status.markdown("**Complete.** Photos sorted and ready.")
+                    detail_status.markdown(f"<span style='color: #4ade80; font-size: 12px;'>Processed in {elapsed:.1f}s — Ready to download</span>", unsafe_allow_html=True)
+                t.sleep(0.5)  # Brief pause so user can see completion
                 st.session_state['photo_sort_results'] = resorted
                 st.rerun()
 
@@ -8802,7 +8848,7 @@ def display_auto_sort():
 
             with save_col1:
                 # Save to Dropbox button with live progress
-                if st.button("☁️ Save to Dropbox", key="btn_save_to_dropbox_photos", use_container_width=True, type="primary"):
+                if st.button("Save to Dropbox", key="btn_save_to_dropbox_photos", use_container_width=True, type="primary"):
                     import time as time_module
 
                     photos_to_save = st.session_state.get('photo_sort_results', sorted_photos)
@@ -8815,7 +8861,7 @@ def display_auto_sort():
                     status = st.empty()
                     time_status = st.empty()
 
-                    status.markdown(f"**☁️ Saving {num_photos} photos to Dropbox...**")
+                    status.markdown(f"**[+] Saving {num_photos} photos to Dropbox...**")
                     time_status.markdown(f"*Estimated time: ~{est_seconds} seconds*")
 
                     start_time = time_module.time()
@@ -8827,10 +8873,10 @@ def display_auto_sort():
                         elapsed = time_module.time() - start_time
                         if current > 0:
                             remaining = (elapsed / current) * (total - current)
-                            status.markdown(f"**☁️ {message}** ({current}/{total})")
+                            status.markdown(f"**[+] {message}** ({current}/{total})")
                             time_status.markdown(f"*{int(remaining)}s remaining...*")
                         else:
-                            status.markdown(f"**☁️ {message}**")
+                            status.markdown(f"**[+] {message}**")
 
                     try:
                         # Get Dropbox client
@@ -8852,8 +8898,8 @@ def display_auto_sort():
                         progress_bar.progress(1.0)
                         status.empty()
                         time_status.empty()
-                        st.success(f"✅ Saved {num_copied} photos to Dropbox in {total_time:.1f}s!")
-                        st.info(f"📁 New folder: {dest_folder}")
+                        st.success(f"Saved {num_copied} photos to Dropbox in {total_time:.1f}s!")
+                        st.info(f"New folder: {dest_folder}")
 
                     except Exception as e:
                         progress_bar.empty()
@@ -8877,21 +8923,21 @@ def display_auto_sort():
                 # Show download button if ZIP is already prepared
                 if st.session_state.get('zip_ready') and st.session_state.get('prepared_zip'):
                     st.download_button(
-                        label="⬇️ Download ZIP",
+                        label="Download ZIP",
                         data=st.session_state['prepared_zip'],
                         file_name="sorted_photos.zip",
                         mime="application/zip",
                         use_container_width=True,
                         type="primary"
                     )
-                    st.caption("✅ ZIP ready! Click above to download")
+                    st.caption("ZIP ready. Click above to download")
                     # Button to prepare again if needed
-                    if st.button("🔄 Re-prepare ZIP", key="btn_reprepare_zip", use_container_width=True):
+                    if st.button("Re-prepare ZIP", key="btn_reprepare_zip", use_container_width=True):
                         st.session_state['zip_ready'] = False
                         st.rerun()
                 else:
                     # One-click prepare and download button
-                    if st.button("📦 Prepare & Download ZIP", key="btn_prepare_download_zip", use_container_width=True, type="primary"):
+                    if st.button("Prepare & Download ZIP", key="btn_prepare_download_zip", use_container_width=True, type="primary"):
                         photos_to_zip = st.session_state.get('photo_sort_results', sorted_photos)
                         num_photos = len(photos_to_zip)
 
@@ -8902,7 +8948,7 @@ def display_auto_sort():
                         status = st.empty()
                         time_status = st.empty()
 
-                        status.markdown(f"**📦 Preparing {num_photos} photos for download...**")
+                        status.markdown(f"**Preparing {num_photos} photos for download...**")
                         time_status.markdown(f"*Estimated time: ~{est_seconds} seconds*")
 
                         start_time = time.time()
@@ -8926,10 +8972,10 @@ def display_auto_sort():
                                 elapsed = time.time() - start_time
                                 if i > 0:
                                     remaining = (elapsed / (i + 1)) * (num_photos - i - 1)
-                                    status.markdown(f"**📦 Adding photo {i+1} of {num_photos}:** {p.get('new_filename', f'Photo-{i+1}')}")
+                                    status.markdown(f"**Adding photo {i+1} of {num_photos}:** {p.get('new_filename', f'Photo-{i+1}')}")
                                     time_status.markdown(f"*{int(remaining)}s remaining...*")
                                 else:
-                                    status.markdown(f"**📦 Adding photo {i+1} of {num_photos}...**")
+                                    status.markdown(f"**Adding photo {i+1} of {num_photos}...**")
 
                         zip_buffer.seek(0)
                         st.session_state['prepared_zip'] = zip_buffer.getvalue()
@@ -8937,7 +8983,7 @@ def display_auto_sort():
 
                         total_time = time.time() - start_time
                         progress_bar.progress(1.0)
-                        status.markdown(f"**✅ ZIP ready!** ({num_photos} photos in {total_time:.1f}s)")
+                        status.markdown(f"**ZIP ready.** ({num_photos} photos in {total_time:.1f}s)")
                         time_status.empty()
 
                         # Rerun to show download button
@@ -9490,7 +9536,7 @@ def display_auto_sort():
                     # Show any processing errors from the analysis phase
                     if st.session_state.get('dropbox_processing_errors'):
                         errors = st.session_state.dropbox_processing_errors
-                        with st.expander(f"⚠️ {len(errors)} clip(s) could not be processed", expanded=False):
+                        with st.expander(f"[!] {len(errors)} clip(s) could not be processed", expanded=False):
                             for err in errors[:20]:
                                 st.text(err)
                             if len(errors) > 20:
@@ -10485,7 +10531,7 @@ def display_auto_sort():
                             saved_key = f"saved_{clip_key}"
 
                             if has_changes:
-                                if st.button("💾 Save", key=save_key, type="primary", use_container_width=True):
+                                if st.button("Save", key=save_key, type="primary", use_container_width=True):
                                     # Log room correction for learning
                                     if room_changed:
                                         stats_tracker.log_room_correction(
@@ -10576,7 +10622,7 @@ def display_auto_sort():
 
         # Auto-structure option
         auto_structure = st.checkbox(
-            "🏠 Auto-structure timeline (standard home video flow)",
+            "Auto-structure timeline (standard home video flow)",
             value=True,
             help="Automatically orders clips: Establishing shot → Main rooms → Bedrooms/Baths → Backyard → Pull away"
         )
@@ -11441,6 +11487,31 @@ def main():
         color: #ffffff !important;
     }
 
+    /* Form submit button - brand purple, not red */
+    .stFormSubmitButton > button,
+    [data-testid="stFormSubmitButton"] > button,
+    button[kind="primaryFormSubmit"] {
+        background: #7B8CDE !important;
+        color: #000000 !important;
+        border: 1px solid #7B8CDE !important;
+        border-radius: 8px !important;
+        font-weight: 700 !important;
+        padding: 10px 20px !important;
+    }
+    .stFormSubmitButton > button:hover,
+    [data-testid="stFormSubmitButton"] > button:hover,
+    button[kind="primaryFormSubmit"]:hover {
+        background: #9BA8E8 !important;
+        border-color: #9BA8E8 !important;
+    }
+    .stFormSubmitButton > button p,
+    .stFormSubmitButton > button span,
+    .stFormSubmitButton > button div,
+    [data-testid="stFormSubmitButton"] > button p,
+    [data-testid="stFormSubmitButton"] > button span {
+        color: #000000 !important;
+    }
+
     /* Caption/hint text - make visible */
     .stCaption, [data-testid="stCaptionContainer"], small {
         color: #a1a1aa !important;
@@ -11595,6 +11666,87 @@ def main():
     div[data-testid="stRadio"] label[data-checked="true"]::before,
     div[data-testid="stRadio"] label:has(input:checked)::before {
         display: none !important;
+    }
+
+    /* ============================================= */
+    /* LIGHTBOX - Full-screen photo viewer          */
+    /* ============================================= */
+    .lightbox-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: rgba(0, 0, 0, 0.95);
+        z-index: 9999;
+        cursor: zoom-out;
+        align-items: center;
+        justify-content: center;
+    }
+    .lightbox-overlay.active {
+        display: flex !important;
+    }
+    .lightbox-image {
+        max-width: 95vw;
+        max-height: 95vh;
+        object-fit: contain;
+        border-radius: 4px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    }
+    .lightbox-close {
+        position: absolute;
+        top: 20px;
+        right: 30px;
+        color: #fff;
+        font-size: 32px;
+        font-weight: 300;
+        cursor: pointer;
+        opacity: 0.7;
+        transition: opacity 0.2s;
+    }
+    .lightbox-close:hover {
+        opacity: 1;
+    }
+
+    /* Clickable photo thumbnail */
+    .photo-thumbnail {
+        cursor: zoom-in;
+        border-radius: 8px;
+        transition: transform 0.2s, box-shadow 0.2s;
+        border: 1px solid #1d1d1f;
+    }
+    .photo-thumbnail:hover {
+        transform: scale(1.02);
+        box-shadow: 0 4px 16px rgba(123, 140, 222, 0.3);
+        border-color: #7B8CDE;
+    }
+
+    /* On-brand icon badges (replacing emojis) */
+    .icon-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 20px;
+        height: 20px;
+        background: rgba(123, 140, 222, 0.15);
+        border-radius: 4px;
+        font-size: 11px;
+        font-weight: 600;
+        color: #7B8CDE;
+        margin-right: 6px;
+    }
+    .icon-badge.success {
+        background: rgba(74, 222, 128, 0.15);
+        color: #4ade80;
+    }
+    .icon-badge.warning {
+        background: rgba(245, 158, 11, 0.15);
+        color: #f59e0b;
+    }
+    .icon-badge.error {
+        background: rgba(239, 68, 68, 0.15);
+        color: #ef4444;
     }
 
     </style>
