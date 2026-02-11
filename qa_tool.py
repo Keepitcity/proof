@@ -1793,7 +1793,7 @@ def render_footer():
                 <div style="font-size: 11px; color: #71717a; text-transform: uppercase; letter-spacing: 0.05em;">Time Saved</div>
             </div>
         </div>
-        <p style="text-align: center; font-size: 11px; color: #71717a !important; letter-spacing: 0.05em;">Proof by Aerial Canvas · Beta v2.2</p>
+        <p style="text-align: center; font-size: 11px; color: #71717a !important; letter-spacing: 0.05em;">Proof by Aerial Canvas · Beta v2.2.1</p>
     </div>
     """, unsafe_allow_html=True)
 
@@ -5753,7 +5753,7 @@ def create_timeline_markers_html(duration: float, markers: list, selected_idx: i
     if not markers or duration <= 0:
         return ""
 
-    # Build marker HTML with clickable divs
+    # Build marker HTML with clickable divs - using inline JS since Streamlit strips <script> tags
     markers_html = ""
     for m in markers:
         pos_pct = (m['timestamp'] / duration * 100) if duration > 0 else 0
@@ -5766,24 +5766,13 @@ def create_timeline_markers_html(duration: float, markers: list, selected_idx: i
         timestamp_sec = m['timestamp']
 
         time_str = f"{int(m['timestamp']//60)}:{int(m['timestamp']%60):02d}"
-        # Add onclick to seek video and cursor pointer for clickability
-        markers_html += f'<div onclick="seekVideo({timestamp_sec})" style="position: absolute; left: {pos_pct}%; top: 50%; transform: translate(-50%, -50%); width: {size}px; height: {size}px; background: {m["color"]}; border-radius: 50%; border: {border}; z-index: {z}; box-shadow: {glow}; cursor: pointer; transition: transform 0.15s ease;" onmouseover="this.style.transform=\'translate(-50%, -50%) scale(1.3)\'" onmouseout="this.style.transform=\'translate(-50%, -50%) scale(1)\'" title="Click to jump to {m["label"]} @ {time_str}"></div>'
+        # Inline JavaScript to find video and seek - no external function needed
+        inline_js = f"var v=document.querySelector('video');if(v){{v.currentTime={timestamp_sec};v.play();}}"
+        markers_html += f'<div onclick="{inline_js}" style="position: absolute; left: {pos_pct}%; top: 50%; transform: translate(-50%, -50%); width: {size}px; height: {size}px; background: {m["color"]}; border-radius: 50%; border: {border}; z-index: {z}; box-shadow: {glow}; cursor: pointer; transition: transform 0.15s ease;" onmouseover="this.style.transform=\'translate(-50%, -50%) scale(1.3)\'" onmouseout="this.style.transform=\'translate(-50%, -50%) scale(1)\'" title="Click to jump to {m["label"]} @ {time_str}"></div>'
 
     end_time = f"{int(duration//60)}:{int(duration%60):02d}"
 
-    # JavaScript function to seek video - finds the Streamlit video element and sets currentTime
-    seek_script = '''<script>
-function seekVideo(timestamp) {
-    var videos = document.querySelectorAll('video');
-    if (videos.length > 0) {
-        var video = videos[videos.length - 1];
-        video.currentTime = timestamp;
-        video.play();
-    }
-}
-</script>'''
-
-    html = f'''{seek_script}<div style="position: relative; background: #111; border-radius: 10px; height: 44px; border: 1px solid #1d1d1f; margin: 12px 0 16px 0; padding: 0 8px;"><div style="position: absolute; top: 50%; left: 24px; right: 24px; height: 6px; background: #1d1d1f; border-radius: 3px; transform: translateY(-50%);"></div><div style="position: absolute; left: 24px; bottom: 6px; color: #52525b; font-size: 10px;">0:00</div><div style="position: absolute; right: 24px; bottom: 6px; color: #52525b; font-size: 10px;">{end_time}</div><div style="position: absolute; left: 24px; right: 24px; top: 0; bottom: 0;">{markers_html}</div></div>'''
+    html = f'''<div style="position: relative; background: #111; border-radius: 10px; height: 44px; border: 1px solid #1d1d1f; margin: 12px 0 16px 0; padding: 0 8px;"><div style="position: absolute; top: 50%; left: 24px; right: 24px; height: 6px; background: #1d1d1f; border-radius: 3px; transform: translateY(-50%);"></div><div style="position: absolute; left: 24px; bottom: 6px; color: #52525b; font-size: 10px;">0:00</div><div style="position: absolute; right: 24px; bottom: 6px; color: #52525b; font-size: 10px;">{end_time}</div><div style="position: absolute; left: 24px; right: 24px; top: 0; bottom: 0;">{markers_html}</div></div>'''
     return html
 
 
@@ -6011,11 +6000,12 @@ def display_video_review_interface(report: QAReport, video_path: str = None, sho
                 sev_bg = "#f59e0b"
                 sev_label = "WARNING"
 
-            # Compact issue card
+            # Compact issue card - inline JS for seeking (Streamlit strips script tags)
+            inline_seek_js = f"var v=document.querySelector('video');if(v){{v.currentTime={timestamp_sec};v.play();}}"
             st.markdown(f"""
             <div style="background: #111; border: 1px solid #1d1d1f; border-radius: 8px; padding: 12px 16px; margin-bottom: 8px; border-left: 3px solid {cat_info['bg']};">
                 <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
-                    <span onclick="seekVideo({timestamp_sec})" style="background: {cat_info['bg']}; color: #000 !important; -webkit-text-fill-color: #000; padding: 3px 8px; border-radius: 4px; font-size: 10px; font-weight: 700; cursor: pointer;" title="Click to seek">{timestamp}</span>
+                    <span onclick="{inline_seek_js}" style="background: {cat_info['bg']}; color: #000 !important; -webkit-text-fill-color: #000; padding: 3px 8px; border-radius: 4px; font-size: 10px; font-weight: 700; cursor: pointer;" title="Click to seek video">{timestamp}</span>
                     <span style="background: {sev_bg}; color: #000 !important; -webkit-text-fill-color: #000; padding: 3px 8px; border-radius: 4px; font-size: 10px; font-weight: 700;">{sev_label}</span>
                     <span style="color: #fff; font-weight: 600; font-size: 13px;">{issue.check_name}</span>
                 </div>
@@ -6027,22 +6017,24 @@ def display_video_review_interface(report: QAReport, video_path: str = None, sho
             if issue.check_name == "Log Footage Detection":
                 col1, col2, col3 = st.columns([2, 1, 1])
                 with col2:
-                    if st.button("Correct", key=f"correct_{report_key}_{idx}", use_container_width=True):
-                        try:
-                            from database import learning_db
-                            learning_db.save_video_detection_feedback("log_footage", 30, 20, True)
-                            st.toast("Marked as correct")
-                        except Exception:
-                            pass
+                    if st.button("Correct", key=f"correct_{report_key}_{idx}", use_container_width=True, type="primary"):
+                        with st.spinner("Saving..."):
+                            try:
+                                from database import learning_db
+                                learning_db.save_video_detection_feedback("log_footage", 30, 20, True)
+                            except Exception:
+                                pass
+                        st.success("Marked as correct")
                 with col3:
                     if st.button("Not Log", key=f"notlog_{report_key}_{idx}", use_container_width=True):
                         # Dismiss this issue from current view
-                        st.session_state[dismissed_key].add(idx)
-                        try:
-                            from database import learning_db
-                            learning_db.save_video_detection_feedback("log_footage", 30, 20, False)
-                        except Exception:
-                            pass
+                        with st.spinner("Dismissing..."):
+                            st.session_state[dismissed_key].add(idx)
+                            try:
+                                from database import learning_db
+                                learning_db.save_video_detection_feedback("log_footage", 30, 20, False)
+                            except Exception:
+                                pass
                         st.rerun()
 
     # =============================================
