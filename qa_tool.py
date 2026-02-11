@@ -1793,7 +1793,7 @@ def render_footer():
                 <div style="font-size: 11px; color: #71717a; text-transform: uppercase; letter-spacing: 0.05em;">Time Saved</div>
             </div>
         </div>
-        <p style="text-align: center; font-size: 11px; color: #71717a !important; letter-spacing: 0.05em;">Proof by Aerial Canvas · Beta v2.4</p>
+        <p style="text-align: center; font-size: 11px; color: #71717a !important; letter-spacing: 0.05em;">Proof by Aerial Canvas · Beta v2.5</p>
     </div>
     """, unsafe_allow_html=True)
 
@@ -2541,17 +2541,20 @@ def detect_log_footage(file_path: str, duration: float) -> QAIssue:
             time_fmt = f"{int(t//60)}:{t%60:05.2f}"
             timestamps.append(f"{time_fmt}")
 
-        # Capture preview at first log footage location
-        preview = capture_video_frame(file_path, low_contrast_segments[0]['time'])
-
-        return QAIssue(
-            check_name="Log Footage Detection",
-            status="fail",
-            message=f"Potential ungraded footage detected ({len(low_contrast_segments)} locations)",
-            timestamp_start=low_contrast_segments[0]['time'],
-            action="Apply color grade at: " + ", ".join(timestamps),
-            preview_image=preview
-        )
+        # Return a list of issues - one per location - so each shows on timeline
+        issues = []
+        for i, seg in enumerate(low_contrast_segments):
+            preview = capture_video_frame(file_path, seg['time']) if i == 0 else None
+            time_fmt = f"{int(seg['time']//60)}:{seg['time']%60:05.2f}"
+            issues.append(QAIssue(
+                check_name="Log Footage Detection",
+                status="warning",  # Warning so it's not as severe as true failures
+                message=f"Potential ungraded footage at {time_fmt}",
+                timestamp_start=seg['time'],
+                action="Apply color grade to this section",
+                preview_image=preview
+            ))
+        return issues  # Return list of issues
 
     except ImportError:
         return QAIssue(
@@ -4700,7 +4703,12 @@ def run_video_qa(file_path: str, folder_path: str = "", progress_callback=None, 
     # Step 8: Detect log footage (STANDARD + FULL)
     if run_color_checks:
         update_progress("Analyzing color grading...")
-        issues.append(detect_log_footage(file_path, duration))
+        log_result = detect_log_footage(file_path, duration)
+        # Handle both single issue and list of issues (multiple log locations)
+        if isinstance(log_result, list):
+            issues.extend(log_result)
+        else:
+            issues.append(log_result)
 
     # Step 9: Check fade out (STANDARD + FULL)
     if run_edit_checks:
@@ -5790,13 +5798,16 @@ def display_video_review_interface(report: QAReport, video_path: str = None, sho
     if report_key not in st.session_state:
         st.session_state[report_key] = 0
 
-    # Track dismissed issues (by check_name to persist across reruns)
-    dismissed_timeline_key = f"dismissed_timeline_{report_key}"
-    dismissed_general_key = f"dismissed_general_{report_key}"
-    if dismissed_timeline_key not in st.session_state:
-        st.session_state[dismissed_timeline_key] = set()
-    if dismissed_general_key not in st.session_state:
-        st.session_state[dismissed_general_key] = set()
+    # Track dismissed issues by unique ID (check_name + timestamp for timeline, check_name + index for general)
+    dismissed_key = f"dismissed_{report_key}"
+    if dismissed_key not in st.session_state:
+        st.session_state[dismissed_key] = set()
+
+    # Helper to create unique issue ID
+    def get_issue_id(issue, idx):
+        if issue.timestamp_start is not None:
+            return f"{issue.check_name}_{issue.timestamp_start:.2f}"
+        return f"{issue.check_name}_{idx}"
 
     # Separate issues by type
     all_timeline_issues = [i for i in report.issues if i.timestamp_start is not None and i.status in ('fail', 'warning')]
@@ -5806,11 +5817,11 @@ def display_video_review_interface(report: QAReport, video_path: str = None, sho
     # Sort timeline issues by timestamp
     all_timeline_issues.sort(key=lambda x: x.timestamp_start or 0)
 
-    # Filter out dismissed issues
+    # Filter out dismissed issues using unique IDs
     timeline_issues = [(i, issue) for i, issue in enumerate(all_timeline_issues)
-                       if issue.check_name not in st.session_state[dismissed_timeline_key]]
+                       if get_issue_id(issue, i) not in st.session_state[dismissed_key]]
     general_issues = [(i, issue) for i, issue in enumerate(all_general_issues)
-                      if issue.check_name not in st.session_state[dismissed_general_key]]
+                      if get_issue_id(issue, i) not in st.session_state[dismissed_key]]
 
     # Count results from FILTERED issues (excludes dismissed)
     passes = len(passed_issues)
@@ -5994,6 +6005,7 @@ def display_video_review_interface(report: QAReport, video_path: str = None, sho
             cat_info = category_colors[category]
             timestamp = format_timestamp_short(issue.timestamp_start)
             timestamp_sec = issue.timestamp_start
+            issue_id = get_issue_id(issue, orig_idx)
 
             # Severity styling
             if issue.status == 'fail':
@@ -6003,24 +6015,26 @@ def display_video_review_interface(report: QAReport, video_path: str = None, sho
                 sev_bg = "#f59e0b"
                 sev_label = "WARNING"
 
-            # Compact issue card - inline JS for seeking (Streamlit strips script tags)
-            inline_seek_js = f"var v=document.querySelector('video');if(v){{v.currentTime={timestamp_sec};v.play();}}"
-            st.markdown(f"""
-            <div style="background: #111; border: 1px solid #1d1d1f; border-radius: 8px; padding: 12px 16px; margin-bottom: 8px; border-left: 3px solid {cat_info['bg']};">
-                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
-                    <span onclick="{inline_seek_js}" style="background: {cat_info['bg']}; color: #000 !important; -webkit-text-fill-color: #000; padding: 3px 8px; border-radius: 4px; font-size: 10px; font-weight: 700; cursor: pointer;" title="Click to seek video">{timestamp}</span>
-                    <span style="background: {sev_bg}; color: #000 !important; -webkit-text-fill-color: #000; padding: 3px 8px; border-radius: 4px; font-size: 10px; font-weight: 700;">{sev_label}</span>
-                    <span style="color: #fff; font-weight: 600; font-size: 13px;">{issue.check_name}</span>
-                </div>
-                <div style="color: #a1a1aa; font-size: 12px; line-height: 1.5;">{issue.message[:150]}{'...' if len(issue.message) > 150 else ''}</div>
-            </div>
-            """, unsafe_allow_html=True)
+            # Use columns to put card and dismiss button side by side
+            card_col, btn_col = st.columns([6, 1])
 
-            # Dismiss button for ALL timeline issues
-            col1, col2 = st.columns([3, 1])
-            with col2:
-                if st.button("Dismiss", key=f"dismiss_tl_{report_key}_{orig_idx}", use_container_width=True):
-                    st.session_state[dismissed_timeline_key].add(issue.check_name)
+            with card_col:
+                # Compact issue card - inline JS for seeking (Streamlit strips script tags)
+                inline_seek_js = f"var v=document.querySelector('video');if(v){{v.currentTime={timestamp_sec};v.play();}}"
+                st.markdown(f"""
+                <div style="background: #111; border: 1px solid #1d1d1f; border-radius: 8px; padding: 10px 14px; border-left: 3px solid {cat_info['bg']};">
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+                        <span onclick="{inline_seek_js}" style="background: {cat_info['bg']}; color: #000 !important; -webkit-text-fill-color: #000; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 700; cursor: pointer;" title="Click to seek video">{timestamp}</span>
+                        <span style="background: {sev_bg}; color: #000 !important; -webkit-text-fill-color: #000; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 700;">{sev_label}</span>
+                        <span style="color: #fff; font-weight: 500; font-size: 12px;">{issue.check_name}</span>
+                    </div>
+                    <div style="color: #a1a1aa; font-size: 11px; line-height: 1.4;">{issue.message[:100]}{'...' if len(issue.message) > 100 else ''}</div>
+                </div>
+                """, unsafe_allow_html=True)
+
+            with btn_col:
+                if st.button("X", key=f"dismiss_tl_{report_key}_{display_idx}", help="Dismiss this issue"):
+                    st.session_state[dismissed_key].add(issue_id)
                     st.rerun()
 
     # =============================================
@@ -6047,35 +6061,34 @@ def display_video_review_interface(report: QAReport, video_path: str = None, sho
         </div>
         """, unsafe_allow_html=True)
 
-        # Build clean issue cards with dismiss buttons
-        for orig_idx, issue in general_issues:
+        # Build clean issue cards with dismiss buttons (side by side)
+        for display_idx, (orig_idx, issue) in enumerate(general_issues):
+            issue_id = get_issue_id(issue, orig_idx)
             severity_color = "#ef4444" if issue.status == 'fail' else "#f59e0b"
             severity_label = "FAIL" if issue.status == 'fail' else "WARNING"
 
             # Clean message display
-            short_msg = issue.message[:100] + "..." if len(issue.message) > 100 else issue.message
+            short_msg = issue.message[:80] + "..." if len(issue.message) > 80 else issue.message
             fix_hint = issue.action if issue.action else ""
 
-            st.markdown(f"""
-            <div style="background: #111; border: 1px solid #1d1d1f; border-radius: 8px; padding: 14px 16px; margin-top: 8px;">
-                <div style="display: flex; align-items: flex-start; gap: 12px;">
-                    <div style="background: {severity_color}; padding: 4px 10px; border-radius: 4px; flex-shrink: 0;">
-                        <span style="color: #000 !important; font-size: 11px; font-weight: 700; letter-spacing: 0.02em; -webkit-text-fill-color: #000;">{severity_label}</span>
-                    </div>
-                    <div style="flex: 1; min-width: 0;">
-                        <div style="color: #fff; font-weight: 600; font-size: 13px; margin-bottom: 4px;">{issue.check_name}</div>
-                        <div style="color: #a1a1aa; font-size: 12px; line-height: 1.4;">{short_msg}</div>
-                        {f'<div style="color: #7B8CDE; font-size: 11px; margin-top: 8px; padding: 8px 10px; background: rgba(123, 140, 222, 0.08); border-radius: 6px; border-left: 2px solid #7B8CDE;"><strong>Fix:</strong> {fix_hint}</div>' if fix_hint else ''}
-                    </div>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
+            # Use columns for card + dismiss button
+            card_col, btn_col = st.columns([6, 1])
 
-            # Dismiss button for this issue
-            col1, col2 = st.columns([3, 1])
-            with col2:
-                if st.button("Dismiss", key=f"dismiss_gen_{report_key}_{orig_idx}", use_container_width=True):
-                    st.session_state[dismissed_general_key].add(issue.check_name)
+            with card_col:
+                st.markdown(f"""
+                <div style="background: #111; border: 1px solid #1d1d1f; border-radius: 8px; padding: 10px 14px; margin-top: 6px;">
+                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 4px;">
+                        <span style="background: {severity_color}; color: #000 !important; -webkit-text-fill-color: #000; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 700;">{severity_label}</span>
+                        <span style="color: #fff; font-weight: 500; font-size: 12px;">{issue.check_name}</span>
+                    </div>
+                    <div style="color: #a1a1aa; font-size: 11px; line-height: 1.4;">{short_msg}</div>
+                    {f'<div style="color: #7B8CDE; font-size: 10px; margin-top: 6px; padding: 6px 8px; background: rgba(123, 140, 222, 0.08); border-radius: 4px;"><strong>Fix:</strong> {fix_hint[:60]}...</div>' if fix_hint and len(fix_hint) > 60 else (f'<div style="color: #7B8CDE; font-size: 10px; margin-top: 6px; padding: 6px 8px; background: rgba(123, 140, 222, 0.08); border-radius: 4px;"><strong>Fix:</strong> {fix_hint}</div>' if fix_hint else '')}
+                </div>
+                """, unsafe_allow_html=True)
+
+            with btn_col:
+                if st.button("X", key=f"dismiss_gen_{report_key}_{display_idx}", help="Dismiss this issue"):
+                    st.session_state[dismissed_key].add(issue_id)
                     st.rerun()
 
     # =============================================
