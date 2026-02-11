@@ -8195,70 +8195,87 @@ def display_auto_sort():
                         drones = [p for p in sorted_photos if p['photo_type'] == 'drone']
                         twilights = [p for p in sorted_photos if p['photo_type'] == 'twilight']
 
-                        # Display sorted preview
-                        st.markdown("### Preview: New File Names")
+                        # Display sorted preview with editable room types
+                        st.markdown("### Preview & Edit Room Types")
+                        st.caption("Review each photo and change the room type if needed. Changes auto-save.")
 
-                        if standard:
-                            st.markdown(f"**Standard Photos ({len(standard)})**")
-                            for p in standard[:10]:
-                                room_name = ROOM_TYPES.get(p['room_type'], {}).get('name', p['room_type'])
-                                st.markdown(f"""
-                                <div style="display: flex; justify-content: space-between; padding: 8px 12px;
-                                            background: #1a1a1a; border-radius: 6px; margin-bottom: 4px; font-size: 12px;">
-                                    <span style="color: #71717a;">{p['filename'][:40]}{'...' if len(p['filename']) > 40 else ''}</span>
-                                    <span style="color: #fff;">→ <strong>{p['new_filename']}</strong></span>
-                                    <span style="color: #52525b;">({room_name})</span>
-                                </div>
-                                """, unsafe_allow_html=True)
-                            if len(standard) > 10:
-                                st.caption(f"...and {len(standard) - 10} more")
+                        # Initialize edited photos in session state if not exists
+                        if 'edited_photo_sort' not in st.session_state:
+                            st.session_state['edited_photo_sort'] = sorted_photos.copy()
 
-                        if drones:
-                            st.markdown(f"**Drone Photos ({len(drones)})**")
-                            for p in drones[:5]:
-                                st.markdown(f"""
-                                <div style="display: flex; justify-content: space-between; padding: 8px 12px;
-                                            background: #1a1a1a; border-radius: 6px; margin-bottom: 4px; font-size: 12px;">
-                                    <span style="color: #71717a;">{p['filename'][:40]}</span>
-                                    <span style="color: #fff;">→ <strong>{p['new_filename']}</strong></span>
-                                </div>
-                                """, unsafe_allow_html=True)
+                        room_options = list(ROOM_TYPES.keys())
+                        room_labels = {k: ROOM_TYPES[k].get('name', k) for k in room_options}
 
-                        if twilights:
-                            st.markdown(f"**Twilight Photos ({len(twilights)})**")
-                            for p in twilights[:5]:
-                                st.markdown(f"""
-                                <div style="display: flex; justify-content: space-between; padding: 8px 12px;
-                                            background: #1a1a1a; border-radius: 6px; margin-bottom: 4px; font-size: 12px;">
-                                    <span style="color: #71717a;">{p['filename'][:40]}</span>
-                                    <span style="color: #fff;">→ <strong>{p['new_filename']}</strong></span>
-                                </div>
-                                """, unsafe_allow_html=True)
+                        # Display photos with thumbnails and editable dropdowns
+                        edited_photos = st.session_state['edited_photo_sort']
 
-                        # Download button
-                        st.markdown("---")
-                        if st.button("Download Sorted Photos (ZIP)", key="btn_download_sorted_photos", use_container_width=True):
-                            with st.spinner("Creating ZIP with renamed photos..."):
-                                import zipfile
-                                import io
+                        for idx, p in enumerate(edited_photos):
+                            col1, col2, col3, col4 = st.columns([1, 2, 2, 2])
 
-                                zip_buffer = io.BytesIO()
-                                with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zf:
-                                    for p in sorted_photos:
-                                        if os.path.exists(p['path']):
-                                            _, ext = os.path.splitext(p['filename'])
-                                            new_name = f"{p['new_filename']}{ext}"
-                                            zf.write(p['path'], new_name)
+                            with col1:
+                                # Show thumbnail
+                                if os.path.exists(p['path']):
+                                    try:
+                                        st.image(p['path'], width=60)
+                                    except:
+                                        st.markdown("📷")
+                                else:
+                                    st.markdown("📷")
 
-                                zip_buffer.seek(0)
-                                folder_name = os.path.splitext(filename)[0] if filename else "photos"
+                            with col2:
+                                st.markdown(f"<div style='padding-top: 8px; color: #71717a; font-size: 11px;'>{p['filename'][:25]}{'...' if len(p['filename']) > 25 else ''}</div>", unsafe_allow_html=True)
 
-                                st.download_button(
-                                    label=f"Download {folder_name}_sorted.zip",
-                                    data=zip_buffer.getvalue(),
-                                    file_name=f"{folder_name}_sorted.zip",
-                                    mime="application/zip"
+                            with col3:
+                                # Editable room type dropdown
+                                current_room = p.get('room_type', 'living_room')
+                                current_idx = room_options.index(current_room) if current_room in room_options else 0
+                                new_room = st.selectbox(
+                                    "Room",
+                                    options=room_options,
+                                    index=current_idx,
+                                    format_func=lambda x: room_labels.get(x, x),
+                                    key=f"room_select_{idx}",
+                                    label_visibility="collapsed"
                                 )
+                                # Update if changed
+                                if new_room != current_room:
+                                    st.session_state['edited_photo_sort'][idx]['room_type'] = new_room
+
+                            with col4:
+                                new_name = p.get('new_filename', f"Photo-{idx+1}")
+                                st.markdown(f"<div style='padding-top: 8px; color: #fff; font-size: 12px;'>→ <strong>{new_name}</strong></div>", unsafe_allow_html=True)
+
+                        # Re-sort button after edits
+                        if st.button("Re-sort with Changes", key="btn_resort_photos", use_container_width=True):
+                            # Re-sort based on edited room types
+                            resorted = sort_photos_for_delivery(st.session_state['edited_photo_sort'])
+                            st.session_state['edited_photo_sort'] = resorted
+                            st.session_state['photo_sort_data'] = resorted
+                            st.rerun()
+
+                        # Download button - create ZIP immediately
+                        st.markdown("---")
+                        import zipfile
+                        import io
+
+                        zip_buffer = io.BytesIO()
+                        with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zf:
+                            for p in st.session_state.get('edited_photo_sort', sorted_photos):
+                                if os.path.exists(p['path']):
+                                    _, ext = os.path.splitext(p['filename'])
+                                    new_name = f"{p['new_filename']}{ext}"
+                                    zf.write(p['path'], new_name)
+
+                        zip_buffer.seek(0)
+                        folder_name = os.path.splitext(filename)[0] if filename else "photos"
+
+                        st.download_button(
+                            label="Download Sorted Photos (ZIP)",
+                            data=zip_buffer.getvalue(),
+                            file_name=f"{folder_name}_sorted.zip",
+                            mime="application/zip",
+                            use_container_width=True
+                        )
 
                     # Cleanup
                     try:
