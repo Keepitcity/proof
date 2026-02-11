@@ -1793,7 +1793,7 @@ def render_footer():
                 <div style="font-size: 11px; color: #71717a; text-transform: uppercase; letter-spacing: 0.05em;">Time Saved</div>
             </div>
         </div>
-        <p style="text-align: center; font-size: 11px; color: #71717a !important; letter-spacing: 0.05em;">Proof by Aerial Canvas · Beta v2.5</p>
+        <p style="text-align: center; font-size: 11px; color: #71717a !important; letter-spacing: 0.05em;">Proof by Aerial Canvas · Beta v2.6</p>
     </div>
     """, unsafe_allow_html=True)
 
@@ -6015,25 +6015,25 @@ def display_video_review_interface(report: QAReport, video_path: str = None, sho
                 sev_bg = "#f59e0b"
                 sev_label = "WARNING"
 
-            # Use columns to put card and dismiss button side by side
-            card_col, btn_col = st.columns([6, 1])
-
-            with card_col:
-                # Compact issue card - inline JS for seeking (Streamlit strips script tags)
-                inline_seek_js = f"var v=document.querySelector('video');if(v){{v.currentTime={timestamp_sec};v.play();}}"
-                st.markdown(f"""
-                <div style="background: #111; border: 1px solid #1d1d1f; border-radius: 8px; padding: 10px 14px; border-left: 3px solid {cat_info['bg']};">
-                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+            # Compact issue card - inline JS for seeking (Streamlit strips script tags)
+            inline_seek_js = f"var v=document.querySelector('video');if(v){{v.currentTime={timestamp_sec};v.play();}}"
+            st.markdown(f"""
+            <div style="background: #111; border: 1px solid #1d1d1f; border-radius: 8px; padding: 10px 14px; margin-bottom: 6px; border-left: 3px solid {cat_info['bg']};">
+                <div style="display: flex; align-items: center; justify-content: space-between;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
                         <span onclick="{inline_seek_js}" style="background: {cat_info['bg']}; color: #000 !important; -webkit-text-fill-color: #000; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 700; cursor: pointer;" title="Click to seek video">{timestamp}</span>
                         <span style="background: {sev_bg}; color: #000 !important; -webkit-text-fill-color: #000; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 700;">{sev_label}</span>
                         <span style="color: #fff; font-weight: 500; font-size: 12px;">{issue.check_name}</span>
                     </div>
-                    <div style="color: #a1a1aa; font-size: 11px; line-height: 1.4;">{issue.message[:100]}{'...' if len(issue.message) > 100 else ''}</div>
                 </div>
-                """, unsafe_allow_html=True)
+                <div style="color: #a1a1aa; font-size: 11px; line-height: 1.4; margin-top: 4px;">{issue.message[:100]}{'...' if len(issue.message) > 100 else ''}</div>
+            </div>
+            """, unsafe_allow_html=True)
 
+            # Dismiss button below card, aligned right
+            _, btn_col = st.columns([5, 1])
             with btn_col:
-                if st.button("X", key=f"dismiss_tl_{report_key}_{display_idx}", help="Dismiss this issue"):
+                if st.button("Dismiss", key=f"dismiss_tl_{report_key}_{display_idx}", use_container_width=True):
                     st.session_state[dismissed_key].add(issue_id)
                     st.rerun()
 
@@ -6071,23 +6071,21 @@ def display_video_review_interface(report: QAReport, video_path: str = None, sho
             short_msg = issue.message[:80] + "..." if len(issue.message) > 80 else issue.message
             fix_hint = issue.action if issue.action else ""
 
-            # Use columns for card + dismiss button
-            card_col, btn_col = st.columns([6, 1])
-
-            with card_col:
-                st.markdown(f"""
-                <div style="background: #111; border: 1px solid #1d1d1f; border-radius: 8px; padding: 10px 14px; margin-top: 6px;">
-                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 4px;">
-                        <span style="background: {severity_color}; color: #000 !important; -webkit-text-fill-color: #000; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 700;">{severity_label}</span>
-                        <span style="color: #fff; font-weight: 500; font-size: 12px;">{issue.check_name}</span>
-                    </div>
-                    <div style="color: #a1a1aa; font-size: 11px; line-height: 1.4;">{short_msg}</div>
-                    {f'<div style="color: #7B8CDE; font-size: 10px; margin-top: 6px; padding: 6px 8px; background: rgba(123, 140, 222, 0.08); border-radius: 4px;"><strong>Fix:</strong> {fix_hint[:60]}...</div>' if fix_hint and len(fix_hint) > 60 else (f'<div style="color: #7B8CDE; font-size: 10px; margin-top: 6px; padding: 6px 8px; background: rgba(123, 140, 222, 0.08); border-radius: 4px;"><strong>Fix:</strong> {fix_hint}</div>' if fix_hint else '')}
+            st.markdown(f"""
+            <div style="background: #111; border: 1px solid #1d1d1f; border-radius: 8px; padding: 10px 14px; margin-top: 6px;">
+                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 4px;">
+                    <span style="background: {severity_color}; color: #000 !important; -webkit-text-fill-color: #000; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 700;">{severity_label}</span>
+                    <span style="color: #fff; font-weight: 500; font-size: 12px;">{issue.check_name}</span>
                 </div>
-                """, unsafe_allow_html=True)
+                <div style="color: #a1a1aa; font-size: 11px; line-height: 1.4;">{short_msg}</div>
+                {f'<div style="color: #7B8CDE; font-size: 10px; margin-top: 6px; padding: 6px 8px; background: rgba(123, 140, 222, 0.08); border-radius: 4px;"><strong>Fix:</strong> {fix_hint[:60]}...</div>' if fix_hint and len(fix_hint) > 60 else (f'<div style="color: #7B8CDE; font-size: 10px; margin-top: 6px; padding: 6px 8px; background: rgba(123, 140, 222, 0.08); border-radius: 4px;"><strong>Fix:</strong> {fix_hint}</div>' if fix_hint else '')}
+            </div>
+            """, unsafe_allow_html=True)
 
+            # Dismiss button below card, aligned right
+            _, btn_col = st.columns([5, 1])
             with btn_col:
-                if st.button("X", key=f"dismiss_gen_{report_key}_{display_idx}", help="Dismiss this issue"):
+                if st.button("Dismiss", key=f"dismiss_gen_{report_key}_{display_idx}", use_container_width=True):
                     st.session_state[dismissed_key].add(issue_id)
                     st.rerun()
 
@@ -6108,7 +6106,8 @@ def display_video_review_interface(report: QAReport, video_path: str = None, sho
     # =============================================
     # COPY SUMMARY FOR SLACK
     # =============================================
-    # Build summary text for clipboard
+    # SHARE SUMMARY - Text area for easy copying to Slack
+    # =============================================
     filename = report.metadata.get('filename', report.filename)
     summary_lines = []
     summary_lines.append(f"QA Report: {filename}")
@@ -6133,38 +6132,25 @@ def display_video_review_interface(report: QAReport, video_path: str = None, sho
     if not timeline_issues and not general_issues:
         summary_lines.append("No issues found - ready for delivery!")
 
-    summary_text = "\\n".join(summary_lines)
+    summary_text = "\n".join(summary_lines)
 
-    # Copy to clipboard button using JavaScript
+    # Display as a copyable text area
     st.markdown("""
     <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid #1d1d1f;">
-        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
-            <span style="color: #fff; font-size: 14px; font-weight: 600;">Share Results</span>
-            <span style="color: #71717a; font-size: 11px;">Copy summary to send via Slack</span>
+        <div style="margin-bottom: 8px;">
+            <span style="color: #fff; font-size: 14px; font-weight: 600;">Summary for Slack</span>
+            <span style="color: #71717a; font-size: 11px; margin-left: 8px;">Select all and copy</span>
         </div>
     </div>
     """, unsafe_allow_html=True)
 
-    col1, col2 = st.columns([3, 1])
-    with col2:
-        copy_btn = st.button("Copy Summary", key=f"copy_summary_{report_key}", use_container_width=True, type="primary")
-
-    if copy_btn:
-        # Use st.components to inject JavaScript that copies to clipboard
-        import streamlit.components.v1 as components
-        escaped_text = summary_text.replace('"', '\\"').replace("'", "\\'")
-        components.html(f"""
-        <script>
-            navigator.clipboard.writeText("{escaped_text}").then(function() {{
-                // Success
-            }});
-        </script>
-        <div style="color: #4ade80; font-size: 12px; padding: 8px;">Copied to clipboard!</div>
-        """, height=40)
-
-    # Show preview of what will be copied
-    with st.expander("Preview Summary", expanded=False):
-        st.code(summary_text.replace("\\n", "\n"), language=None)
+    st.text_area(
+        "Summary",
+        value=summary_text,
+        height=150,
+        key=f"summary_text_{report_key}",
+        label_visibility="collapsed"
+    )
 
 
 def display_video_timeline_report(report: QAReport, video_path: str = None, show_feedback: bool = True):
@@ -12152,7 +12138,23 @@ def main():
             )
             st.caption("Paste link and click Analyze")
 
-            if video_dropbox:
+            # Check if we have a cached report to display (after dismiss/rerun)
+            if 'cached_video_report' in st.session_state and st.session_state.get('cached_video_filename'):
+                # Display cached report without re-analyzing
+                display_video_review_interface(
+                    st.session_state['cached_video_report'],
+                    st.session_state.get('cached_video_path')
+                )
+                # Button to clear and analyze new video
+                if st.button("Analyze New Video", key="btn_clear_cache", use_container_width=True):
+                    del st.session_state['cached_video_report']
+                    if 'cached_video_path' in st.session_state:
+                        del st.session_state['cached_video_path']
+                    if 'cached_video_filename' in st.session_state:
+                        del st.session_state['cached_video_filename']
+                    st.rerun()
+
+            elif video_dropbox:
                 if st.button("Analyze", key="btn_video_dropbox", use_container_width=True):
                     progress_bar = st.progress(0)
                     status_text = st.empty()
@@ -12208,6 +12210,11 @@ def main():
 
                         report = run_video_qa(tmp_path, progress_callback=update_video_progress_db, original_filename=filename, analysis_mode=st.session_state.video_analysis_mode)
 
+                        # Cache report in session state to avoid re-analysis on dismiss
+                        st.session_state['cached_video_report'] = report
+                        st.session_state['cached_video_path'] = tmp_path
+                        st.session_state['cached_video_filename'] = filename
+
                         progress_bar.progress(1.0)
                         elapsed = time.time() - start_time
                         elapsed_fmt = f"{int(elapsed // 60)}:{int(elapsed % 60):02d}"
@@ -12223,7 +12230,8 @@ def main():
                         progress_bar.empty()
 
                         display_video_review_interface(report, tmp_path)
-                        os.unlink(tmp_path)
+                        # Don't delete temp file yet - keep for cached display
+                        # os.unlink(tmp_path)
 
         with video_tab2:
             video_file = st.file_uploader(
