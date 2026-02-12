@@ -143,7 +143,11 @@ class UserDatabase:
 
     # Waitlist management
     def add_to_waitlist(self, email: str, name: str = None, notes: str = None) -> bool:
-        """Add user to waitlist. Returns True if added, False if already exists."""
+        """Add user to waitlist. Returns True if added, False if already exists or is team member."""
+        # Never add team members to waitlist
+        if self.is_team_member(email):
+            return False
+
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
         try:
@@ -157,6 +161,27 @@ class UserDatabase:
         except sqlite3.IntegrityError:
             conn.close()
             return False
+
+    def remove_from_waitlist(self, email: str) -> bool:
+        """Remove a user from the waitlist"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute('DELETE FROM waitlist WHERE email = ?', (email,))
+        deleted = cursor.rowcount > 0
+        conn.commit()
+        conn.close()
+        return deleted
+
+    def cleanup_team_from_waitlist(self) -> int:
+        """Remove any team members that were accidentally added to waitlist"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        # Delete anyone with @aerialcanvas.com from waitlist
+        cursor.execute("DELETE FROM waitlist WHERE email LIKE '%@aerialcanvas.com'")
+        deleted = cursor.rowcount
+        conn.commit()
+        conn.close()
+        return deleted
 
     def is_on_waitlist(self, email: str) -> bool:
         """Check if email is on the waitlist"""
@@ -269,6 +294,48 @@ class UserDatabase:
             'total_issues': row[3] or 0,
             'total_time_saved_seconds': row[4] or 0
         }
+
+    def get_all_users_with_stats(self) -> List[Dict]:
+        """Get all users with their stats for admin dashboard"""
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT
+                u.id,
+                u.email,
+                u.name,
+                u.picture_url,
+                u.is_team_member,
+                u.first_login,
+                u.last_login,
+                u.login_count,
+                COALESCE(s.total_videos_analyzed, 0) as videos_analyzed,
+                COALESCE(s.total_photos_analyzed, 0) as photos_analyzed,
+                COALESCE(s.total_clips_sorted, 0) as clips_sorted,
+                COALESCE(s.total_issues_found, 0) as issues_found,
+                COALESCE(s.total_time_saved_seconds, 0) as time_saved_seconds
+            FROM users u
+            LEFT JOIN user_stats s ON u.id = s.user_id
+            ORDER BY u.last_login DESC
+        ''')
+        rows = cursor.fetchall()
+        conn.close()
+        return [dict(row) for row in rows]
+
+    def get_waitlist_count(self) -> int:
+        """Get total number of people on waitlist"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute('SELECT COUNT(*) FROM waitlist')
+        count = cursor.fetchone()[0]
+        conn.close()
+        return count
+
+    def is_admin(self, email: str) -> bool:
+        """Check if user is an admin (currently just shawn@aerialcanvas.com)"""
+        admin_emails = ['shawn@aerialcanvas.com']
+        return email.lower() in [e.lower() for e in admin_emails]
 
 
 # Global instance

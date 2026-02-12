@@ -14,7 +14,7 @@ import sqlite3
 import time
 import hashlib
 import zipfile
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from dataclasses import dataclass, asdict
 from typing import List, Optional, Tuple, Dict
@@ -22,6 +22,7 @@ import numpy as np
 
 # User authentication and tracking
 from database import user_db, learning_db
+
 
 # Google OAuth (optional - for team authentication)
 try:
@@ -1392,6 +1393,23 @@ ICONS = {
         <circle cx="12" cy="12" r="2" fill="{BRAND_PURPLE}"></circle>
         <circle cx="18" cy="12" r="2" fill="{BRAND_PURPLE}"></circle>
     </svg>''',
+
+    'gear': f'''<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="{BRAND_PURPLE}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="3"></circle>
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+    </svg>''',
+
+    'users': f'''<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="{BRAND_PURPLE}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+        <circle cx="9" cy="7" r="4"></circle>
+        <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+        <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+    </svg>''',
+
+    'clipboard': f'''<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="{BRAND_PURPLE}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
+        <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
+    </svg>''',
 }
 
 def icon(name: str, size: int = None) -> str:
@@ -2218,127 +2236,278 @@ def check_authentication():
     """
     Check if user is authenticated via Google OAuth.
     Returns (is_authenticated, user_info) tuple.
-    user_info contains: email, name, picture_url
+    user_info contains: email, name, picture_url, is_team
     """
-    # TODO: Set to False to enable Google authentication
-    AUTH_DISABLED = True  # Temporarily disabled while Google OAuth propagates
+    # Set to False to enable Google authentication
+    AUTH_DISABLED = False  # Google OAuth enabled
 
     if AUTH_DISABLED:
         return True, {'email': 'team@aerialcanvas.com', 'name': 'Aerial Canvas Team', 'is_team': True}
 
-    if not GOOGLE_AUTH_AVAILABLE:
-        # If Google auth not installed, allow access (dev mode)
-        return True, {'email': 'dev@aerialcanvas.com', 'name': 'Developer', 'is_team': True}
-
-    # Check if we have valid auth in session
+    # Check if we have valid auth in session state
     if 'user_info' in st.session_state and st.session_state.user_info:
-        return True, st.session_state.user_info
+        user_info = st.session_state.user_info
+        # Re-check team membership every time (in case it wasn't set correctly)
+        if 'email' in user_info:
+            user_info['is_team'] = user_info.get('email', '').lower().endswith('@aerialcanvas.com')
+        return True, user_info
+
+    # Check for restore_session query param (from localStorage redirect)
+    query_params = st.query_params
+    restore_email = query_params.get("restore_email")
+    restore_name = query_params.get("restore_name")
+    restore_picture = query_params.get("restore_picture")
+
+    if restore_email:
+        # Restore session from localStorage data
+        user_info = {
+            'email': restore_email,
+            'name': restore_name or '',
+            'picture_url': restore_picture or '',
+            'is_team': restore_email.lower().endswith('@aerialcanvas.com')
+        }
+        st.session_state.user_info = user_info
+
+        # Preserve page and theme params, clear only restore params
+        page_param = query_params.get("page")
+        theme_param = query_params.get("theme")
+        st.query_params.clear()
+        if page_param:
+            st.query_params["page"] = page_param
+        if theme_param:
+            st.query_params["theme"] = theme_param
+        st.rerun()
 
     return False, None
+
+def clear_session():
+    """Clear user session on logout"""
+    if 'user_info' in st.session_state:
+        del st.session_state.user_info
+    if 'current_user_id' in st.session_state:
+        del st.session_state.current_user_id
 
 
 def show_login_page():
     """Display the Google Sign-In page"""
+    import base64
+
+    # Load the Proof logo
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    proof_logo_path = os.path.join(script_dir, "Proof.png")
+    logo_b64 = None
+    if os.path.exists(proof_logo_path):
+        with open(proof_logo_path, "rb") as f:
+            logo_b64 = base64.b64encode(f.read()).decode()
+
+    # White background, black text styling
     st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
-    .stApp, .main, .block-container { background: #000 !important; }
+    .stApp, .main, .block-container { background: #FFFFFF !important; }
     * { font-family: 'Poppins', -apple-system, sans-serif !important; }
+    #MainMenu, footer, header { visibility: hidden; }
     </style>
     """, unsafe_allow_html=True)
 
-    st.markdown("""
-    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 50vh; text-align: center;">
-        <h1 style="font-size: 48px; color: #000000 !important; margin-bottom: 16px;">Proof</h1>
-        <p style="color: #a1a1aa; font-size: 18px; margin-bottom: 8px;">by Aerial Canvas</p>
-        <p style="color: #71717a; font-size: 14px; margin-bottom: 40px;">Automated QA for video and photo deliverables</p>
-    </div>
-    """, unsafe_allow_html=True)
+    # Check localStorage for saved session and restore if found
+    # Using st.components.v1.html() which properly executes JavaScript
+    import streamlit.components.v1 as components
 
-    # Google Sign-In
+    components.html("""
+    <script>
+        (function() {
+            const urlParams = new URLSearchParams(window.parent.location.search);
+
+            // If clear_storage flag is set, clear localStorage (user signed out)
+            if (urlParams.has('clear_storage')) {
+                localStorage.removeItem('proof_user_email');
+                localStorage.removeItem('proof_user_name');
+                localStorage.removeItem('proof_user_picture');
+                // Remove the clear_storage param and reload clean
+                window.parent.location.href = window.parent.location.pathname;
+                return;
+            }
+
+            // Only try to restore if we don't already have restore params or auth code
+            if (!urlParams.has('restore_email') && !urlParams.has('code')) {
+                const email = localStorage.getItem('proof_user_email');
+                const name = localStorage.getItem('proof_user_name');
+                const picture = localStorage.getItem('proof_user_picture');
+
+                if (email) {
+                    // Build restore URL with user info
+                    const baseUrl = window.parent.location.origin + window.parent.location.pathname;
+                    const params = new URLSearchParams();
+                    params.set('restore_email', email);
+                    if (name) params.set('restore_name', name);
+                    if (picture) params.set('restore_picture', picture);
+
+                    // Redirect to restore session
+                    window.parent.location.href = baseUrl + '?' + params.toString();
+                }
+            }
+        })();
+    </script>
+    """, height=0)
+
+    # Logo and branding - centered with button closer
+    if logo_b64:
+        st.markdown(f"""
+        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 40vh; text-align: center; padding-top: 60px;">
+            <img src="data:image/png;base64,{logo_b64}" style="height: 160px; margin-bottom: 24px; filter: invert(1);">
+            <p style="color: #a1a1aa; font-size: 16px; margin-bottom: 12px; font-weight: 500;">by Aerial Canvas</p>
+            <p style="color: #000000; font-size: 20px; margin-bottom: 32px;">Automated QA for Video and Photo Deliverables</p>
+        </div>
+        """, unsafe_allow_html=True)
+    else:
+        st.markdown("""
+        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 40vh; text-align: center; padding-top: 60px;">
+            <h1 style="font-size: 96px; color: #000000 !important; margin-bottom: 16px;">Proof</h1>
+            <p style="color: #a1a1aa; font-size: 16px; margin-bottom: 12px; font-weight: 500;">by Aerial Canvas</p>
+            <p style="color: #000000; font-size: 20px; margin-bottom: 32px;">Automated QA for Video and Photo Deliverables</p>
+        </div>
+        """, unsafe_allow_html=True)
+
+
+    # Google Sign-In - Custom styled button
     try:
+        import urllib.parse
+        import requests as req
+
         client_id = st.secrets["google_oauth"]["client_id"]
         client_secret = st.secrets["google_oauth"]["client_secret"]
         redirect_uri = st.secrets["google_oauth"]["redirect_uri"]
 
-        # Google OAuth endpoints
-        AUTHORIZE_URL = "https://accounts.google.com/o/oauth2/v2/auth"
-        TOKEN_URL = "https://oauth2.googleapis.com/token"
+        # Check if we're returning from Google OAuth with a code
+        query_params = st.query_params
+        auth_code = query_params.get("code")
 
-        # Create OAuth2 component
-        oauth2 = OAuth2Component(
-            client_id=client_id,
-            client_secret=client_secret,
-            authorize_endpoint=AUTHORIZE_URL,
-            token_endpoint=TOKEN_URL,
-        )
+        # Process OAuth callback if we have a code
+        if auth_code:
+            st.info("Processing Google sign-in...")
 
-        # Center the login button
-        col1, col2, col3 = st.columns([1, 2, 1])
-        with col2:
-            result = oauth2.authorize_button(
-                name="Sign in with Google",
-                icon="https://www.google.com/favicon.ico",
-                redirect_uri=redirect_uri,
-                scope="openid email profile",
-                key="google_login",
-                use_container_width=True,
+            # Exchange code for token
+            token_response = req.post(
+                "https://oauth2.googleapis.com/token",
+                data={
+                    "client_id": client_id,
+                    "client_secret": client_secret,
+                    "code": auth_code,
+                    "grant_type": "authorization_code",
+                    "redirect_uri": redirect_uri,
+                }
             )
 
-        if result and 'token' in result:
-            # Get user info from Google
-            token = result['token']
-            access_token = token.get('access_token')
+            if token_response.status_code == 200:
+                token_data = token_response.json()
+                access_token = token_data.get("access_token")
 
-            if access_token:
-                # Fetch user info from Google
-                import requests as req
-                user_response = req.get(
-                    "https://www.googleapis.com/oauth2/v2/userinfo",
-                    headers={"Authorization": f"Bearer {access_token}"}
-                )
-
-                if user_response.status_code == 200:
-                    google_user = user_response.json()
-                    user_info = {
-                        'email': google_user.get('email', ''),
-                        'name': google_user.get('name', ''),
-                        'picture_url': google_user.get('picture', ''),
-                        'is_team': user_db.is_team_member(google_user.get('email', ''))
-                    }
-                    st.session_state.user_info = user_info
-
-                    # Log to database
-                    user_db.get_or_create_user(
-                        email=user_info['email'],
-                        name=user_info['name'],
-                        picture_url=user_info['picture_url']
+                if access_token:
+                    # Get user info
+                    user_response = req.get(
+                        "https://www.googleapis.com/oauth2/v2/userinfo",
+                        headers={"Authorization": f"Bearer {access_token}"}
                     )
 
-                    st.rerun()
+                    if user_response.status_code == 200:
+                        google_user = user_response.json()
+                        user_email = google_user.get('email', '')
+                        is_team = user_db.is_team_member(user_email)
+
+                        user_info_data = {
+                            'email': user_email,
+                            'name': google_user.get('name', ''),
+                            'picture_url': google_user.get('picture', ''),
+                            'is_team': is_team
+                        }
+                        st.session_state.user_info = user_info_data
+
+                        # Log to database
+                        user_db.get_or_create_user(
+                            email=user_info_data['email'],
+                            name=user_info_data['name'],
+                            picture_url=user_info_data['picture_url']
+                        )
+
+                        # Save to localStorage for session persistence
+                        escaped_email = user_info_data['email'].replace("'", "\\'")
+                        escaped_name = user_info_data['name'].replace("'", "\\'")
+                        escaped_picture = user_info_data['picture_url'].replace("'", "\\'")
+                        st.markdown(f"""
+                        <script>
+                            localStorage.setItem('proof_user_email', '{escaped_email}');
+                            localStorage.setItem('proof_user_name', '{escaped_name}');
+                            localStorage.setItem('proof_user_picture', '{escaped_picture}');
+                        </script>
+                        """, unsafe_allow_html=True)
+
+                        # Clear the code from URL and reload
+                        st.query_params.clear()
+                        st.rerun()
+                    else:
+                        st.error(f"Failed to get user info: {user_response.status_code}")
+                else:
+                    st.error("No access token received")
+            else:
+                st.error(f"Token exchange failed: {token_response.status_code} - {token_response.text}")
+
+        # Build Google OAuth URL
+        oauth_params = {
+            "client_id": client_id,
+            "redirect_uri": redirect_uri,
+            "response_type": "code",
+            "scope": "openid email profile",
+            "access_type": "offline",
+            "prompt": "select_account"
+        }
+        google_oauth_url = f"https://accounts.google.com/o/oauth2/v2/auth?{urllib.parse.urlencode(oauth_params)}"
+
+        # Google icon SVG
+        google_icon = '''<svg width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+            <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+            <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+            <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+        </svg>'''
+
+        # Custom styled button - using target="_top" to stay in same tab
+        st.markdown(f"""
+        <div style="display: flex; justify-content: center; padding: 0 20px;">
+            <a href="{google_oauth_url}" target="_top" style="
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                gap: 12px;
+                padding: 14px 32px;
+                background: #ffffff;
+                color: #000000;
+                text-decoration: none;
+                font-size: 16px;
+                font-weight: 500;
+                font-family: 'Poppins', sans-serif;
+                border: 1px solid #e5e5e5;
+                border-radius: 8px;
+                cursor: pointer;
+                transition: all 0.2s ease;
+                min-width: 280px;
+            " onmouseover="this.style.background='#000000'; this.style.color='#ffffff'; this.style.borderColor='#000000';"
+               onmouseout="this.style.background='#ffffff'; this.style.color='#000000'; this.style.borderColor='#e5e5e5';">
+                {google_icon}
+                <span>Sign in with Google</span>
+            </a>
+        </div>
+        """, unsafe_allow_html=True)
 
     except Exception as e:
         st.markdown(f"""
         <div style="text-align: center; padding: 20px;">
-            <p style="color: #f87171; font-size: 14px;">Google OAuth not configured.</p>
+            <p style="color: #ef4444; font-size: 14px;">Google OAuth not configured.</p>
             <p style="color: #71717a; font-size: 12px; margin-top: 8px;">
                 See .streamlit/secrets.toml for setup instructions.
             </p>
         </div>
         """, unsafe_allow_html=True)
-
-    # Dev bypass button (always show for now)
-    st.markdown("<div style='height: 20px;'></div>", unsafe_allow_html=True)
-    col1, col2, col3 = st.columns([1, 2, 1])
-    with col2:
-        if st.button("Continue as Developer", use_container_width=True):
-            st.session_state.user_info = {
-                'email': 'dev@aerialcanvas.com',
-                'name': 'Developer',
-                'picture_url': '',
-                'is_team': True
-            }
-            st.rerun()
 
 
 def show_waitlist_page(user_info: dict):
@@ -2346,7 +2515,7 @@ def show_waitlist_page(user_info: dict):
     st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
-    .stApp, .main, .block-container { background: #000 !important; }
+    .stApp, .main, .block-container { background: #FFFFFF !important; }
     * { font-family: 'Poppins', -apple-system, sans-serif !important; }
     </style>
     """, unsafe_allow_html=True)
@@ -2357,10 +2526,10 @@ def show_waitlist_page(user_info: dict):
     st.markdown(f"""
     <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 60vh; text-align: center;">
         <h1 style="font-size: 36px; color: #000000 !important; margin-bottom: 16px;">You're on the list!</h1>
-        <p style="color: #a1a1aa; font-size: 16px; margin-bottom: 8px;">Thanks for your interest in Proof by Aerial Canvas.</p>
+        <p style="color: #71717a; font-size: 16px; margin-bottom: 8px;">Thanks for your interest in Proof by Aerial Canvas.</p>
         <p style="color: #71717a; font-size: 14px; margin-bottom: 32px;">
             We're currently in private beta with the Aerial Canvas team.<br>
-            We'll notify you at <span style="color: #000000;">{email}</span> when we open up access.
+            We'll notify you at <span style="color: #000000; font-weight: 600;">{email}</span> when we open up access.
         </p>
     </div>
     """, unsafe_allow_html=True)
@@ -2368,13 +2537,22 @@ def show_waitlist_page(user_info: dict):
     # Add to waitlist
     user_db.add_to_waitlist(email, name)
 
-    # Sign out option
-    col1, col2, col3 = st.columns([1, 2, 1])
-    with col2:
-        if st.button("Sign out", use_container_width=True):
-            st.session_state.user_info = None
-            st.session_state.connected = False
-            st.rerun()
+    # Sign out option - using HTML/JS to clear localStorage
+    st.markdown("""
+    <div style="display: flex; justify-content: center; margin-top: 20px;">
+        <button onclick="localStorage.removeItem('proof_user_email'); localStorage.removeItem('proof_user_name'); localStorage.removeItem('proof_user_picture'); window.location.href='?action=signout';" style="
+            padding: 12px 32px;
+            background: #f4f4f5;
+            color: #000000;
+            border: 1px solid #e5e5e5;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            font-family: 'Poppins', sans-serif;
+        ">Sign out</button>
+    </div>
+    """, unsafe_allow_html=True)
 
 
 # ============================================================================
@@ -9064,15 +9242,30 @@ def display_auto_sort(sort_type="Video"):
         </div>
         """, unsafe_allow_html=True)
 
-        # Photo delivery order reference
+        # How it Works section for Photos (moved up, right under cards)
         st.markdown(f"""
-        <div style="background: rgba(123, 140, 222, 0.1); border: 1px solid rgba(123, 140, 222, 0.3);
-                    border-radius: 12px; padding: 16px; margin-bottom: 20px;">
-            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
-                {icon('info', 16)}
-                <span style="color: {theme['text']}; font-weight: 600; font-size: 14px;">Standard Photo Delivery Order</span>
+        <div style="background: {theme['card']}; border: 1px solid {theme['border']}; border-radius: 12px; padding: 20px; margin-bottom: 20px; font-family: 'Poppins', sans-serif;">
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+                {icon('info', 18)}
+                <span style="color: {theme['text']}; font-weight: 600; font-size: 15px; font-family: 'Poppins', sans-serif;">How it Works</span>
             </div>
-            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; font-size: 12px; color: {theme['text_secondary']};">
+            <ol style="color: {theme['text_secondary']}; font-size: 13px; margin: 0; padding-left: 20px; line-height: 1.8; font-family: 'Poppins', sans-serif;">
+                <li>Paste your Dropbox folder link containing photos</li>
+                <li>AI analyzes each image to detect the room type</li>
+                <li>Photos are automatically sorted into standard delivery order</li>
+                <li>Files are renamed (Photo-1, Photo-2, Drone-1, etc.) and packaged for download</li>
+            </ol>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # Photo delivery order reference (moved below How it Works) - Compact 2-column layout
+        st.markdown(f"""
+        <div style="background: {theme['card']}; border: 1px solid {theme['border']}; border-radius: 12px; padding: 20px; margin-bottom: 20px; font-family: 'Poppins', sans-serif;">
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+                {icon('info', 18)}
+                <span style="color: {theme['text']}; font-weight: 600; font-size: 15px; font-family: 'Poppins', sans-serif;">Standard Photo Delivery Order</span>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px 40px; font-size: 13px; color: {theme['text_secondary']}; font-family: 'Poppins', sans-serif; line-height: 1.8;">
                 <div>1. Front of home / front patio</div>
                 <div>6. Kitchen</div>
                 <div>2. Entryway</div>
@@ -9084,75 +9277,67 @@ def display_auto_sort(sort_type="Video"):
                 <div>5. Family room</div>
                 <div>10. Back of home / backyard / ADU</div>
             </div>
-            <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(123, 140, 222, 0.2); color: {theme['text_muted']}; font-size: 11px;">
+            <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid {theme['border']}; color: {theme['text_muted']}; font-size: 12px; font-family: 'Poppins', sans-serif;">
                 Naming: Photo-1, Photo-2... | Drone-1, Drone-2... | Twilight-1, Twilight-2...
             </div>
         </div>
         """, unsafe_allow_html=True)
 
-        # How it Works section for Photos
+        # Intelligent Room Detection - Single row with 8 columns
         st.markdown(f"""
-        <div style="background: {theme['card']}; border: 1px solid {theme['border']}; border-radius: 12px; padding: 20px; margin-bottom: 20px;">
-            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
-                {icon('info', 18)}
-                <span style="color: {theme['text']}; font-weight: 600; font-size: 15px;">How it Works</span>
-            </div>
-            <ol style="color: {theme['text_secondary']}; font-size: 13px; margin: 0; padding-left: 20px; line-height: 1.8;">
-                <li>Paste your Dropbox folder link containing photos</li>
-                <li>AI analyzes each image to detect the room type</li>
-                <li>Photos are automatically sorted into standard delivery order</li>
-                <li>Files are renamed (Photo-1, Photo-2, Drone-1, etc.) and packaged for download</li>
-            </ol>
-        </div>
-        """, unsafe_allow_html=True)
-
-        # Intelligent Room Detection breakdown - 5 columns x 2 rows = 10 items
-        st.markdown(f"""
-        <div style="background: {theme['card']}; border: 1px solid {theme['border']}; border-radius: 12px; padding: 20px; margin-bottom: 20px;">
+        <div style="background: {theme['card']}; border: 1px solid {theme['border']}; border-radius: 12px; padding: 20px; margin-bottom: 20px; font-family: 'Poppins', sans-serif;">
             <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 16px;">
                 {icon('room_detection', 18)}
-                <span style="color: {theme['text']}; font-weight: 600; font-size: 15px;">Intelligent Room Detection</span>
+                <span style="color: {theme['text']}; font-weight: 600; font-size: 15px; font-family: 'Poppins', sans-serif;">Intelligent Room Detection</span>
             </div>
-            <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px;">
-                <div style="background: rgba(123, 140, 222, 0.1); border-radius: 8px; padding: 10px; text-align: center;">
-                    <div style="color: {theme['text']}; font-size: 11px; font-weight: 600;">EXTERIOR</div>
-                    <div style="color: {theme['text_muted']}; font-size: 10px; margin-top: 4px;">Front · Rear</div>
+            <div style="display: grid; grid-template-columns: repeat(8, 1fr); gap: 16px; font-size: 12px; font-family: 'Poppins', sans-serif;">
+                <div>
+                    <div style="color: {theme['text']}; font-weight: 600; margin-bottom: 6px;">Exterior</div>
+                    <div style="color: {theme['text_secondary']}; line-height: 1.7;">
+                        Front<br>Rear<br>Driveway<br>Garage<br>Curb
+                    </div>
                 </div>
-                <div style="background: rgba(123, 140, 222, 0.1); border-radius: 8px; padding: 10px; text-align: center;">
-                    <div style="color: {theme['text']}; font-size: 11px; font-weight: 600;">ENTRY</div>
-                    <div style="color: {theme['text_muted']}; font-size: 10px; margin-top: 4px;">Foyer · Hallway · Stairs</div>
+                <div>
+                    <div style="color: {theme['text']}; font-weight: 600; margin-bottom: 6px;">Entry</div>
+                    <div style="color: {theme['text_secondary']}; line-height: 1.7;">
+                        Foyer<br>Hallway<br>Stairs<br>Mudroom
+                    </div>
                 </div>
-                <div style="background: rgba(123, 140, 222, 0.1); border-radius: 8px; padding: 10px; text-align: center;">
-                    <div style="color: {theme['text']}; font-size: 11px; font-weight: 600;">LIVING SPACES</div>
-                    <div style="color: {theme['text_muted']}; font-size: 10px; margin-top: 4px;">Living · Dining · Family</div>
+                <div>
+                    <div style="color: {theme['text']}; font-weight: 600; margin-bottom: 6px;">Living</div>
+                    <div style="color: {theme['text_secondary']}; line-height: 1.7;">
+                        Living<br>Family<br>Great<br>Dining<br>Den
+                    </div>
                 </div>
-                <div style="background: rgba(123, 140, 222, 0.1); border-radius: 8px; padding: 10px; text-align: center;">
-                    <div style="color: {theme['text']}; font-size: 11px; font-weight: 600;">KITCHEN</div>
-                    <div style="color: {theme['text_muted']}; font-size: 10px; margin-top: 4px;">Kitchen · Pantry</div>
+                <div>
+                    <div style="color: {theme['text']}; font-weight: 600; margin-bottom: 6px;">Kitchen</div>
+                    <div style="color: {theme['text_secondary']}; line-height: 1.7;">
+                        Kitchen<br>Pantry<br>Butler's<br>Island<br>Nook
+                    </div>
                 </div>
-                <div style="background: rgba(123, 140, 222, 0.1); border-radius: 8px; padding: 10px; text-align: center;">
-                    <div style="color: {theme['text']}; font-size: 11px; font-weight: 600;">BEDROOMS</div>
-                    <div style="color: {theme['text_muted']}; font-size: 10px; margin-top: 4px;">Primary · Secondary</div>
+                <div>
+                    <div style="color: {theme['text']}; font-weight: 600; margin-bottom: 6px;">Bedrooms</div>
+                    <div style="color: {theme['text_secondary']}; line-height: 1.7;">
+                        Primary<br>Secondary<br>Guest<br>Nursery
+                    </div>
                 </div>
-                <div style="background: rgba(123, 140, 222, 0.1); border-radius: 8px; padding: 10px; text-align: center;">
-                    <div style="color: {theme['text']}; font-size: 11px; font-weight: 600;">BATHROOMS</div>
-                    <div style="color: {theme['text_muted']}; font-size: 10px; margin-top: 4px;">Full · Half · Primary</div>
+                <div>
+                    <div style="color: {theme['text']}; font-weight: 600; margin-bottom: 6px;">Bathrooms</div>
+                    <div style="color: {theme['text_secondary']}; line-height: 1.7;">
+                        Primary<br>Full<br>Half<br>Powder
+                    </div>
                 </div>
-                <div style="background: rgba(123, 140, 222, 0.1); border-radius: 8px; padding: 10px; text-align: center;">
-                    <div style="color: {theme['text']}; font-size: 11px; font-weight: 600;">UTILITY</div>
-                    <div style="color: {theme['text_muted']}; font-size: 10px; margin-top: 4px;">Laundry · Garage · Office</div>
+                <div>
+                    <div style="color: {theme['text']}; font-weight: 600; margin-bottom: 6px;">Outdoor</div>
+                    <div style="color: {theme['text_secondary']}; line-height: 1.7;">
+                        Backyard<br>Pool<br>Patio<br>Deck<br>Garden
+                    </div>
                 </div>
-                <div style="background: rgba(123, 140, 222, 0.1); border-radius: 8px; padding: 10px; text-align: center;">
-                    <div style="color: {theme['text']}; font-size: 11px; font-weight: 600;">OUTDOOR</div>
-                    <div style="color: {theme['text_muted']}; font-size: 10px; margin-top: 4px;">Yard · Pool · Patio</div>
-                </div>
-                <div style="background: rgba(123, 140, 222, 0.1); border-radius: 8px; padding: 10px; text-align: center;">
-                    <div style="color: {theme['text']}; font-size: 11px; font-weight: 600;">SPECIAL</div>
-                    <div style="color: {theme['text_muted']}; font-size: 10px; margin-top: 4px;">ADU · Drone · Detail</div>
-                </div>
-                <div style="background: rgba(123, 140, 222, 0.1); border-radius: 8px; padding: 10px; text-align: center;">
-                    <div style="color: {theme['text']}; font-size: 11px; font-weight: 600;">FEATURES</div>
-                    <div style="color: {theme['text_muted']}; font-size: 10px; margin-top: 4px;">Views · Closets · Amenities</div>
+                <div>
+                    <div style="color: {theme['text']}; font-weight: 600; margin-bottom: 6px;">Special</div>
+                    <div style="color: {theme['text_secondary']}; line-height: 1.7;">
+                        Drone<br>ADU<br>Office<br>Laundry<br>Twilight
+                    </div>
                 </div>
             </div>
         </div>
@@ -9722,60 +9907,245 @@ def display_auto_sort(sort_type="Video"):
 
     st.markdown(f"""
     <style>
-    /* Video Sort text input styling */
+    /* ============ VIDEO SORT LIGHT MODE STYLES ============ */
+
+    /* Text input styling */
     [data-testid="stTextInput"] input {{
-        background: {theme['card']} !important;
-        color: {theme['text']} !important;
-        border: 1px solid {theme['border']} !important;
+        background: {'#FFFFFF' if is_light else theme['card']} !important;
+        color: {'#000000' if is_light else theme['text']} !important;
+        border: 1px solid {'#CCCCCC' if is_light else theme['border']} !important;
         border-radius: 8px !important;
     }}
     [data-testid="stTextInput"] input::placeholder {{
-        color: {placeholder_color} !important;
+        color: {'#888888' if is_light else theme['text_muted']} !important;
     }}
-    [data-testid="stTextInput"] input:focus {{
-        border-color: {theme['text']} !important;
-        box-shadow: none !important;
+
+    /* ===== RADIO BUTTONS (Dropbox Shared Link / Upload Files) ===== */
+    /* Target ALL possible radio button structures */
+
+    /* The outer radio container */
+    [data-testid="stRadio"] {{
+        background: transparent !important;
     }}
-    /* Video Sort button styling - light gray in light mode */
+
+    /* The radiogroup div */
+    [data-testid="stRadio"] [role="radiogroup"],
+    [data-testid="stRadio"] > div > div {{
+        background: {'#F0F0F0' if is_light else theme['bg_secondary']} !important;
+        border-radius: 10px !important;
+        padding: 4px !important;
+        display: flex !important;
+        gap: 4px !important;
+    }}
+
+    /* ALL labels inside radio (unselected state) */
+    [data-testid="stRadio"] label {{
+        background: transparent !important;
+        color: {'#666666' if is_light else theme['text_secondary']} !important;
+        border-radius: 8px !important;
+        padding: 10px 20px !important;
+        font-weight: 500 !important;
+        cursor: pointer !important;
+        border: none !important;
+    }}
+
+    /* Selected state - multiple selectors to catch it */
+    [data-testid="stRadio"] label[data-checked="true"],
+    [data-testid="stRadio"] label[aria-checked="true"],
+    [data-testid="stRadio"] label:has(input:checked),
+    [data-testid="stRadio"] [data-checked="true"] {{
+        background: {'#FFFFFF' if is_light else theme['card']} !important;
+        color: {'#000000' if is_light else theme['text']} !important;
+        font-weight: 600 !important;
+        box-shadow: {'0 2px 4px rgba(0,0,0,0.15)' if is_light else 'none'} !important;
+    }}
+
+    /* Force text color inside selected radio */
+    [data-testid="stRadio"] label[data-checked="true"] *,
+    [data-testid="stRadio"] label[aria-checked="true"] *,
+    [data-testid="stRadio"] [data-checked="true"] * {{
+        color: {'#000000' if is_light else theme['text']} !important;
+    }}
+
+    /* Hide the radio circle indicator */
+    [data-testid="stRadio"] label > div:first-child,
+    [data-testid="stRadio"] [data-baseweb="radio"] > div:first-child {{
+        display: none !important;
+    }}
+
+    /* Radio text styling */
+    [data-testid="stRadio"] label p,
+    [data-testid="stRadio"] label span {{
+        color: inherit !important;
+    }}
+
+    /* Primary buttons */
     .stButton > button[kind="primary"] {{
-        background: {btn_bg} !important;
-        color: {btn_text} !important;
+        background: {'#F5F5F5' if is_light else theme['card']} !important;
+        color: {'#000000' if is_light else theme['text']} !important;
         border: none !important;
         border-radius: 8px !important;
         font-weight: 600 !important;
     }}
     .stButton > button[kind="primary"]:hover {{
-        background: {btn_hover} !important;
-        color: {btn_text} !important;
+        background: {'#E8E8E8' if is_light else theme['card_hover']} !important;
     }}
-    .stButton > button[kind="primary"] p,
-    .stButton > button[kind="primary"] span {{
-        color: {btn_text} !important;
+
+    /* ===== FILE UPLOADER ===== */
+    /* Main dropzone with dashed border */
+    [data-testid="stFileUploader"] section {{
+        background: {'#FAFAFA' if is_light else theme['card']} !important;
+        border: 2px dashed {'#CCCCCC' if is_light else theme['border']} !important;
+        border-radius: 10px !important;
+        padding: 20px !important;
     }}
-    /* Radio buttons styling */
-    [data-testid="stRadio"] label {{
-        color: {theme['text']} !important;
+
+    /* Clear backgrounds on parent wrappers */
+    [data-testid="stFileUploader"],
+    [data-testid="stFileUploader"] > div {{
+        background: transparent !important;
+        border: none !important;
+    }}
+
+    /* File uploader text */
+    [data-testid="stFileUploader"] span,
+    [data-testid="stFileUploader"] p,
+    [data-testid="stFileUploader"] small {{
+        color: {'#666666' if is_light else theme['text_secondary']} !important;
+    }}
+
+    /* Browse Files button */
+    [data-testid="stFileUploader"] button,
+    [data-testid="baseButton-secondary"] {{
+        background: {'#FFFFFF' if is_light else theme['card']} !important;
+        color: {'#000000' if is_light else theme['text']} !important;
+        border: 1px solid {'#CCCCCC' if is_light else theme['border']} !important;
+        border-radius: 8px !important;
+    }}
+    [data-testid="stFileUploader"] button:hover {{
+        background: {'#F5F5F5' if is_light else theme['card_hover']} !important;
     }}
     </style>
     """, unsafe_allow_html=True)
 
     # Feature overview cards for VIDEO
     st.markdown(f"""
-    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 30px;">
+    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 20px;">
         <div style="background: {theme['card']}; border: 1px solid {theme['border']}; border-radius: 12px; padding: 20px; text-align: center;">
             <div style="margin-bottom: 8px;">{icon('room_detection', 28)}</div>
             <div style="color: {theme['text']}; font-weight: 600; margin-bottom: 4px;">Room Detection</div>
-            <div style="color: {theme['text_muted']}; font-size: 12px;">Kitchen, bedroom, bathroom, living room, exterior, drone</div>
+            <div style="color: {theme['text_muted']}; font-size: 12px;">AI identifies each room type</div>
         </div>
         <div style="background: {theme['card']}; border: 1px solid {theme['border']}; border-radius: 12px; padding: 20px; text-align: center;">
             <div style="margin-bottom: 8px;">{icon('best_moments', 28)}</div>
             <div style="color: {theme['text']}; font-weight: 600; margin-bottom: 4px;">Best Moments</div>
-            <div style="color: {theme['text_muted']}; font-size: 12px;">Finds smoothest, best-exposed sections of each clip</div>
+            <div style="color: {theme['text_muted']}; font-size: 12px;">Finds smoothest, best-exposed sections</div>
         </div>
         <div style="background: {theme['card']}; border: 1px solid {theme['border']}; border-radius: 12px; padding: 20px; text-align: center;">
             <div style="margin-bottom: 8px;">{icon('xml_export', 28)}</div>
             <div style="color: {theme['text']}; font-weight: 600; margin-bottom: 4px;">XML Export</div>
-            <div style="color: {theme['text_muted']}; font-size: 12px;">DaVinci Resolve, Premiere Pro, Final Cut Pro X</div>
+            <div style="color: {theme['text_muted']}; font-size: 12px;">DaVinci, Premiere, Final Cut</div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # How it Works section for Video (moved up, right under cards)
+    st.markdown(f"""
+    <div style="background: {theme['card']}; border: 1px solid {theme['border']}; border-radius: 12px; padding: 20px; margin-bottom: 20px; font-family: 'Poppins', sans-serif;">
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+            {icon('info', 18)}
+            <span style="color: {theme['text']}; font-weight: 600; font-size: 15px; font-family: 'Poppins', sans-serif;">How it Works</span>
+        </div>
+        <ol style="color: {theme['text_secondary']}; font-size: 13px; margin: 0; padding-left: 20px; line-height: 1.8; font-family: 'Poppins', sans-serif;">
+            <li>Upload raw video clips or paste a Dropbox shared link</li>
+            <li>AI analyzes each clip to detect room type and find best moments</li>
+            <li>Clips are automatically sorted into standard delivery order</li>
+            <li>Download an XML timeline ready for your editing software</li>
+        </ol>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # Video delivery order reference (moved below How it Works) - Compact 2-column layout
+    st.markdown(f"""
+    <div style="background: {theme['card']}; border: 1px solid {theme['border']}; border-radius: 12px; padding: 20px; margin-bottom: 20px; font-family: 'Poppins', sans-serif;">
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+            {icon('info', 18)}
+            <span style="color: {theme['text']}; font-weight: 600; font-size: 15px; font-family: 'Poppins', sans-serif;">Standard Video Delivery Order</span>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px 40px; font-size: 13px; color: {theme['text_secondary']}; font-family: 'Poppins', sans-serif; line-height: 1.8;">
+            <div>1. Drone / Aerial</div>
+            <div>6. Kitchen</div>
+            <div>2. Front exterior</div>
+            <div>7. Master bedroom & bath</div>
+            <div>3. Entryway / Foyer</div>
+            <div>8. Secondary bedrooms & baths</div>
+            <div>4. Living / Great room</div>
+            <div>9. Backyard / Pool / Patio</div>
+            <div>5. Dining room</div>
+            <div>10. Rear exterior / ADU</div>
+        </div>
+        <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid {theme['border']}; color: {theme['text_muted']}; font-size: 12px; font-family: 'Poppins', sans-serif;">
+            Output: Edit-ready XML timeline for DaVinci Resolve, Premiere Pro, or Final Cut Pro X
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # Intelligent Room Detection - Single row with 8 columns
+    st.markdown(f"""
+    <div style="background: {theme['card']}; border: 1px solid {theme['border']}; border-radius: 12px; padding: 20px; margin-bottom: 20px; font-family: 'Poppins', sans-serif;">
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 16px;">
+            {icon('room_detection', 18)}
+            <span style="color: {theme['text']}; font-weight: 600; font-size: 15px; font-family: 'Poppins', sans-serif;">Intelligent Room Detection</span>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(8, 1fr); gap: 16px; font-size: 12px; font-family: 'Poppins', sans-serif;">
+            <div>
+                <div style="color: {theme['text']}; font-weight: 600; margin-bottom: 6px;">Exterior</div>
+                <div style="color: {theme['text_secondary']}; line-height: 1.7;">
+                    Front<br>Rear<br>Driveway<br>Garage<br>Curb
+                </div>
+            </div>
+            <div>
+                <div style="color: {theme['text']}; font-weight: 600; margin-bottom: 6px;">Entry</div>
+                <div style="color: {theme['text_secondary']}; line-height: 1.7;">
+                    Foyer<br>Hallway<br>Stairs<br>Mudroom
+                </div>
+            </div>
+            <div>
+                <div style="color: {theme['text']}; font-weight: 600; margin-bottom: 6px;">Living</div>
+                <div style="color: {theme['text_secondary']}; line-height: 1.7;">
+                    Living<br>Family<br>Great<br>Dining<br>Den
+                </div>
+            </div>
+            <div>
+                <div style="color: {theme['text']}; font-weight: 600; margin-bottom: 6px;">Kitchen</div>
+                <div style="color: {theme['text_secondary']}; line-height: 1.7;">
+                    Kitchen<br>Pantry<br>Butler's<br>Island<br>Nook
+                </div>
+            </div>
+            <div>
+                <div style="color: {theme['text']}; font-weight: 600; margin-bottom: 6px;">Bedrooms</div>
+                <div style="color: {theme['text_secondary']}; line-height: 1.7;">
+                    Primary<br>Secondary<br>Guest<br>Nursery
+                </div>
+            </div>
+            <div>
+                <div style="color: {theme['text']}; font-weight: 600; margin-bottom: 6px;">Bathrooms</div>
+                <div style="color: {theme['text_secondary']}; line-height: 1.7;">
+                    Primary<br>Full<br>Half<br>Powder
+                </div>
+            </div>
+            <div>
+                <div style="color: {theme['text']}; font-weight: 600; margin-bottom: 6px;">Outdoor</div>
+                <div style="color: {theme['text_secondary']}; line-height: 1.7;">
+                    Backyard<br>Pool<br>Patio<br>Deck<br>Garden
+                </div>
+            </div>
+            <div>
+                <div style="color: {theme['text']}; font-weight: 600; margin-bottom: 6px;">Special</div>
+                <div style="color: {theme['text_secondary']}; line-height: 1.7;">
+                    Drone<br>ADU<br>Office<br>Laundry<br>Views
+                </div>
+            </div>
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -11784,52 +12154,6 @@ def display_auto_sort(sort_type="Video"):
                 del st.session_state.auto_sort_temp_dir
             st.rerun()
 
-    else:
-        # Show room types we detect when no clips loaded
-        st.markdown("---")
-        st.markdown(f"""
-        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 16px;">
-            {icon('room_detection', 24)}
-            <h3 style="color: #fff; margin: 0;">Intelligent Room Detection</h3>
-        </div>
-        <p style="color: #71717a; font-size: 13px; margin-bottom: 16px;">
-            AI-powered recognition automatically identifies and sorts your footage into these room types
-        </p>
-        """, unsafe_allow_html=True)
-
-        room_types_display = [
-            ("room_drone", "Drone", "Aerial establishing shots"),
-            ("room_exterior", "Exterior Front", "Front of house, curb appeal"),
-            ("room_exterior_rear", "Exterior Rear", "Back of house views"),
-            ("room_entry", "Entry/Foyer", "Entryway, first impressions"),
-            ("room_living", "Living Room", "Main living space"),
-            ("room_kitchen", "Kitchen", "Kitchen, island, appliances"),
-            ("room_dining", "Dining Room", "Dining areas"),
-            ("room_primary_bed", "Primary Bedroom", "Master suite"),
-            ("room_bedroom", "Bedroom", "Guest rooms"),
-            ("room_bathroom", "Bathroom", "Full/half bath"),
-            ("room_office", "Office", "Home office, study"),
-            ("room_laundry", "Laundry", "Washer, dryer, utility"),
-            ("room_garage", "Garage", "Garage interior"),
-            ("room_adu", "ADU", "Guest house, in-law unit"),
-            ("room_backyard", "Backyard", "Yard, patio, deck"),
-            ("room_pool", "Pool", "Pool, spa, outdoor"),
-            ("room_yard", "Yard/Garden", "Landscaping"),
-            ("room_detail", "Detail", "Close-up shots"),
-        ]
-
-        cols = st.columns(4)
-        for i, (icon_key, name, desc) in enumerate(room_types_display):
-            with cols[i % 4]:
-                st.markdown(f"""
-                <div style="background: #111; border: 1px solid #1d1d1f; border-radius: 10px;
-                            padding: 14px 12px; margin-bottom: 10px; text-align: center;">
-                    <div style="margin-bottom: 6px;">{icon(icon_key, 22)}</div>
-                    <div style="color: #fff; font-size: 12px; font-weight: 600; margin-bottom: 2px;">{name}</div>
-                    <div style="color: #52525b; font-size: 10px;">{desc}</div>
-                </div>
-                """, unsafe_allow_html=True)
-
     # Footer with stats
     render_footer()
 
@@ -12935,9 +13259,35 @@ def main():
         st.session_state.app_page = "Photo Proof"
 
     # =============================================
-    # HANDLE URL NAVIGATION (BEFORE getting theme colors)
+    # HANDLE URL NAVIGATION (fallback)
     # =============================================
     query_params = st.query_params
+
+    # Handle sign out action
+    action_param = query_params.get("action")
+    if action_param == "signout":
+        clear_session()
+        st.query_params.clear()
+        st.rerun()
+
+    # Handle page navigation
+    page_param = query_params.get("page")
+    if page_param:
+        page_map = {
+            "home": ("Home", "Home"),
+            "video": ("Video Proof", "Video"),
+            "photo": ("Photo Proof", "Photo"),
+            "photo_sort": ("Photo Sort", "Auto Sort"),
+            "video_sort": ("Video Sort", "Auto Sort"),
+            "about": ("About", "About"),
+            "admin": ("Admin", "Admin"),
+        }
+        if page_param in page_map:
+            new_page, new_mode = page_map[page_param]
+            st.session_state.app_page = new_page
+            st.session_state.app_mode = new_mode
+            st.query_params.clear()
+            st.rerun()
 
     # Handle theme switch
     theme_param = query_params.get("theme")
@@ -12949,24 +13299,7 @@ def main():
         st.query_params.clear()
         st.rerun()
 
-    # Handle page navigation
-    page_param = query_params.get("page")
-    if page_param:
-        page_map = {
-            "video": ("Video Proof", "Video"),
-            "photo": ("Photo Proof", "Photo"),
-            "photo_sort": ("Photo Sort", "Auto Sort"),
-            "video_sort": ("Video Sort", "Auto Sort"),
-            "about": ("About", "About"),
-        }
-        if page_param in page_map:
-            new_page, new_mode = page_map[page_param]
-            st.session_state.app_page = new_page
-            st.session_state.app_mode = new_mode
-            st.query_params.clear()
-            st.rerun()
-
-    # Get current theme colors (AFTER URL params are processed)
+    # Get current theme colors
     theme = get_theme_colors()
 
     # Apply new Proof Design System CSS
@@ -12976,6 +13309,20 @@ def main():
     # NAVBAR WITH LOGO
     # =============================================
     import base64
+    from datetime import datetime as dt
+
+    # Time-based greeting
+    current_hour = dt.now().hour
+    if current_hour < 12:
+        time_greeting = "Good morning"
+    elif current_hour < 17:
+        time_greeting = "Good afternoon"
+    else:
+        time_greeting = "Good evening"
+
+    user_first_name = user_info.get('name', 'friend').split()[0]
+    user_greeting = f"{time_greeting}, {user_first_name}!"
+
     script_dir = os.path.dirname(os.path.abspath(__file__))
     proof_logo_path = os.path.join(script_dir, "Proof.png")
 
@@ -13050,48 +13397,110 @@ def main():
     </style>
     """, unsafe_allow_html=True)
 
-    # Navbar with HTML toggle
+    # =============================================
+    # HTML NAVBAR (original beautiful design)
+    # Include restore params directly in href to preserve session across navigation
+    # =============================================
+    import urllib.parse
+
+    # Build restore params for session persistence
+    user_email = user_info.get('email', '')
+    user_name = user_info.get('name', '')
+    user_picture = user_info.get('picture_url', '')
+
+    def build_nav_url(page):
+        """Build navigation URL with session restore params"""
+        params = {'page': page}
+        if user_email:
+            params['restore_email'] = user_email
+            params['restore_name'] = user_name
+            params['restore_picture'] = user_picture
+        return '?' + urllib.parse.urlencode(params)
+
+    def build_theme_url(new_theme):
+        """Build theme toggle URL with session restore params"""
+        params = {'theme': new_theme}
+        if user_email:
+            params['restore_email'] = user_email
+            params['restore_name'] = user_name
+            params['restore_picture'] = user_picture
+        return '?' + urllib.parse.urlencode(params)
+
+    # Build admin link if user is admin (with small gear icon)
+    admin_link_html = ""
+    if user_db.is_admin(user_email):
+        small_gear = '''<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 6px;"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>'''
+        admin_link_html = f'<a href="{build_nav_url("admin")}" target="_top" style="display: block; padding: 10px 16px; color: {theme["text"]}; text-decoration: none; font-size: 13px; font-weight: 500; border-bottom: 1px solid {theme["border"]};">{small_gear}Admin</a>'
+
     st.markdown(f"""
     <div class="proof-navbar">
-        <div class="proof-navbar-logo">
+        <a href="{build_nav_url('home')}" target="_top" class="proof-navbar-logo" style="text-decoration: none;">
             {logo_img}
-        </div>
+        </a>
         <div class="proof-navbar-nav">
-            <a href="?page=photo" target="_self" class="proof-navbar-link {photo_active}">Photo</a>
-            <a href="?page=video" target="_self" class="proof-navbar-link {video_active}">Video</a>
+            <a href="{build_nav_url('photo')}" target="_top" class="proof-navbar-link {photo_active}">Photo</a>
+            <a href="{build_nav_url('video')}" target="_top" class="proof-navbar-link {video_active}">Video</a>
             <div class="proof-dropdown">
                 <span class="proof-navbar-link {sort_active}">Auto Sort ▾</span>
                 <div class="proof-dropdown-content">
-                    <a href="?page=photo_sort" target="_self" class="proof-dropdown-item">Photo</a>
-                    <a href="?page=video_sort" target="_self" class="proof-dropdown-item">Video</a>
+                    <a href="{build_nav_url('photo_sort')}" target="_top" class="proof-dropdown-item">Photo</a>
+                    <a href="{build_nav_url('video_sort')}" target="_top" class="proof-dropdown-item">Video</a>
                 </div>
             </div>
-            <a href="?page=about" target="_self" class="proof-navbar-link {about_active}">About</a>
         </div>
         <div class="proof-navbar-right">
+            <div class="proof-user-dropdown">
+                <div class="proof-user-menu" style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                    <div style="width: 36px; height: 36px; border-radius: 50%; background: {theme['border']}; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 600; color: {theme['text']}; overflow: hidden; border: 2px solid {theme['border']};">
+                        {f'<img src="{user_info.get("picture_url", "")}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">' if user_info.get('picture_url') else user_info.get('name', 'U')[0].upper()}
+                    </div>
+                    <div style="display: flex; flex-direction: column; align-items: flex-start; line-height: 1.2;">
+                        <span style="color: {theme['text']}; font-size: 12px; font-weight: 600;">{user_greeting}</span>
+                        <span style="color: {theme['text_muted']}; font-size: 10px; font-weight: 500; font-style: italic;">Let's get it!</span>
+                    </div>
+                </div>
+                <div class="proof-user-dropdown-content">
+                    <div style="background: {theme['bg_secondary']}; border: 1px solid {theme['border']}; border-radius: 8px; padding: 8px 0; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+                        {admin_link_html}
+                        <a href="?action=signout&clear_storage=1" target="_top" style="display: block; padding: 10px 16px; color: {theme['text']}; text-decoration: none; font-size: 13px; font-weight: 500;">Sign Out</a>
+                    </div>
+                </div>
+            </div>
             <span style="color: {theme['text_muted']}; font-size: 11px; font-weight: 600; letter-spacing: 1px;">BETA</span>
-            <a href="?theme={'light' if is_dark else 'dark'}" target="_self" style="text-decoration: none; display: block;">
+            <a href="{build_theme_url('light' if is_dark else 'dark')}" target="_top" style="text-decoration: none; display: block; margin-left: 12px;">
                 <div class="proof-toggle" style="background: {theme['bg_secondary']}; border: 1px solid {theme['border']}; width: 48px; height: 26px; border-radius: 13px; position: relative; cursor: pointer;">
-                    <div id="theme-toggle-knob" style="position: absolute; top: 2px; left: {knob_left}; width: 20px; height: 20px; border-radius: 50%; transition: left 0.3s ease;"></div>
+                    <div style="position: absolute; top: 2px; left: {knob_left}; width: 20px; height: 20px; border-radius: 50%; background: {'#FFFFFF' if is_dark else '#000000'}; transition: left 0.3s ease;"></div>
                 </div>
             </a>
         </div>
     </div>
     <style>
-        #theme-toggle-knob {{
-            background: {'#FFFFFF' if is_dark else '#000000'} !important;
+        .proof-user-dropdown {{ position: relative; }}
+        .proof-user-dropdown-content {{
+            display: none;
+            position: absolute;
+            top: 100%;
+            right: 0;
+            background: transparent;
+            min-width: 160px;
+            padding-top: 8px;
+            z-index: 1001;
         }}
+        .proof-user-dropdown:hover .proof-user-dropdown-content {{ display: block; }}
+        .proof-user-dropdown-content a:hover {{ background: {theme['border']}; }}
     </style>
     """, unsafe_allow_html=True)
 
     # Spacer for fixed navbar
     st.markdown("<div style='height: 80px;'></div>", unsafe_allow_html=True)
 
+
     # =============================================
     # MAIN CONTENT AREA
     # =============================================
     # Map new page names to old app_mode for compatibility
     page_to_mode = {
+        "Home": "Home",
         "Photo Proof": "Photo",
         "Video Proof": "Video",
         "Photo Sort": "Auto Sort",
@@ -13539,6 +13948,336 @@ def main():
     current_page = st.session_state.app_page
 
     # =============================================
+    # HOME PAGE - Landing Page
+    # =============================================
+    if app_mode == "Home":
+        is_light = theme['bg'] == '#FFFFFF'
+        icon_color = theme['text']
+
+        # SVG Icons (black outline style)
+        icon_clock = f'''<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="{icon_color}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <polyline points="12 6 12 12 16 14"></polyline>
+        </svg>'''
+
+        icon_rocket = f'''<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="{icon_color}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"></path>
+            <path d="M12 15l-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"></path>
+            <path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"></path>
+            <path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"></path>
+        </svg>'''
+
+        icon_sparkle = f'''<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="{icon_color}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 3l1.5 5.5L19 10l-5.5 1.5L12 17l-1.5-5.5L5 10l5.5-1.5L12 3z"></path>
+            <path d="M5 3l.5 2L7 5.5 5.5 6 5 8l-.5-2L3 5.5 4.5 5 5 3z"></path>
+            <path d="M19 17l.5 2 1.5.5-1.5.5-.5 2-.5-2-1.5-.5 1.5-.5.5-2z"></path>
+        </svg>'''
+
+        icon_video = f'''<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="{icon_color}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"></rect>
+            <path d="M7 2v20"></path>
+            <path d="M17 2v20"></path>
+            <path d="M2 12h20"></path>
+            <path d="M2 7h5"></path>
+            <path d="M2 17h5"></path>
+            <path d="M17 17h5"></path>
+            <path d="M17 7h5"></path>
+        </svg>'''
+
+        icon_camera = f'''<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="{icon_color}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+            <circle cx="12" cy="13" r="4"></circle>
+        </svg>'''
+
+        icon_house = f'''<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="{icon_color}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+            <polyline points="9 22 9 12 15 12 15 22"></polyline>
+        </svg>'''
+
+        icon_folder = f'''<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="{icon_color}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+        </svg>'''
+
+        # Additional icons for the expanded homepage
+        icon_eye = f'''<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="{icon_color}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+            <circle cx="12" cy="12" r="3"></circle>
+        </svg>'''
+
+        icon_target = f'''<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="{icon_color}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <circle cx="12" cy="12" r="6"></circle>
+            <circle cx="12" cy="12" r="2"></circle>
+        </svg>'''
+
+        icon_users = f'''<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="{icon_color}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+            <circle cx="9" cy="7" r="4"></circle>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+        </svg>'''
+
+        icon_compass = f'''<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="{icon_color}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"></polygon>
+        </svg>'''
+
+        icon_layers = f'''<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="{icon_color}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+            <polyline points="2 17 12 22 22 17"></polyline>
+            <polyline points="2 12 12 17 22 12"></polyline>
+        </svg>'''
+
+        icon_zap = f'''<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="{icon_color}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+        </svg>'''
+
+        # =============================================
+        # HERO SECTION
+        # =============================================
+        st.markdown(f"""
+        <div style="text-align: center; padding: 80px 20px 80px; font-family: 'Poppins', sans-serif;">
+            <h1 style="color: {theme['text']}; font-size: 72px; font-weight: 800; margin: 0 0 20px 0; letter-spacing: -3px;">
+                Don't Suck.
+            </h1>
+            <p style="color: {theme['text_secondary']}; font-size: 22px; font-weight: 400; margin: 0; max-width: 700px; line-height: 1.6; display: inline-block;">
+                The smartest, most honest set of eyes and ears you can run your work through before it goes out the door.
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # =============================================
+        # WHAT PROOF IS
+        # =============================================
+        st.markdown(f"""
+        <div style="max-width: 800px; margin: 0 auto 80px; padding: 0 20px; font-family: 'Poppins', sans-serif; text-align: center;">
+            <p style="color: {theme['text_muted']}; font-size: 12px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; margin: 0 0 12px 0;">What Proof Is</p>
+            <h2 style="color: {theme['text']}; font-size: 36px; font-weight: 700; margin: 0 0 40px 0; line-height: 1.3;">
+                An AI Creative Director<br>That Never Sleeps
+            </h2>
+            <p style="color: {theme['text_secondary']}; font-size: 17px; line-height: 1.8; margin: 0;">
+                Proof is an AI-powered creative quality control tool. It analyzes visual and audio media — photos, videos, drone footage, portraits, and more — and provides actionable feedback to elevate the quality of the final product. It's not an editing tool. It's not a generator. It watches your video, listens to your audio, looks at your photos, and tells you exactly what needs to be better and how to make it better.
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # =============================================
+        # THE PHILOSOPHY
+        # =============================================
+        st.markdown(f"""
+        <div style="background: {theme['card']}; border-top: 1px solid {theme['border']}; border-bottom: 1px solid {theme['border']}; padding: 80px 20px; margin-bottom: 80px; font-family: 'Poppins', sans-serif;">
+            <div style="max-width: 800px; margin: 0 auto; text-align: center;">
+                <p style="color: {theme['text_muted']}; font-size: 12px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; margin: 0 0 12px 0;">The Philosophy</p>
+                <h2 style="color: {theme['text']}; font-size: 36px; font-weight: 700; margin: 0 0 40px 0;">
+                    Why "Don't Suck"?
+                </h2>
+                <p style="color: {theme['text_secondary']}; font-size: 17px; line-height: 1.8; margin: 0 0 30px 0;">
+                    The bar in media production — especially in real estate — is shockingly low. Bad audio, poorly lit photos, inconsistent color, flat storytelling, rooms mislabeled, music drowning out voiceover. Most of it sucks, and most people don't even realize it because nobody's checking.
+                </p>
+                <p style="color: {theme['text']}; font-size: 20px; line-height: 1.7; font-weight: 500; margin: 0;">
+                    "Don't Suck" isn't a joke — it's the operating standard. Every piece of media that runs through Proof gets held to real, measurable, professional standards. If it passes, it doesn't suck. If it doesn't pass, you know exactly why and exactly how to fix it.
+                </p>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # =============================================
+        # WHO IT'S FOR
+        # =============================================
+        st.markdown(f"""
+        <div style="max-width: 800px; margin: 0 auto 80px; padding: 0 20px; font-family: 'Poppins', sans-serif; text-align: center;">
+            <p style="color: {theme['text_muted']}; font-size: 12px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; margin: 0 0 12px 0;">Who It's For</p>
+            <h2 style="color: {theme['text']}; font-size: 36px; font-weight: 700; margin: 0 0 40px 0;">
+                Built for Creators Who Give a Damn
+            </h2>
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px;">
+                <div style="background: {theme['card']}; border: 1px solid {theme['border']}; border-radius: 12px; padding: 24px; text-align: center;">
+                    <div style="margin: 0 auto 12px;">{icon_users}</div>
+                    <h4 style="color: {theme['text']}; font-size: 15px; font-weight: 600; margin: 0 0 8px;">Production Teams</h4>
+                    <p style="color: {theme['text_secondary']}; font-size: 13px; line-height: 1.5; margin: 0;">
+                        QC 50 deliverables a week without eyeballing every one
+                    </p>
+                </div>
+                <div style="background: {theme['card']}; border: 1px solid {theme['border']}; border-radius: 12px; padding: 24px; text-align: center;">
+                    <div style="margin: 0 auto 12px;">{icon_target}</div>
+                    <h4 style="color: {theme['text']}; font-size: 15px; font-weight: 600; margin: 0 0 8px;">Solo Creators</h4>
+                    <p style="color: {theme['text_secondary']}; font-size: 13px; line-height: 1.5; margin: 0;">
+                        Get a creative director looking over your shoulder
+                    </p>
+                </div>
+                <div style="background: {theme['card']}; border: 1px solid {theme['border']}; border-radius: 12px; padding: 24px; text-align: center;">
+                    <div style="margin: 0 auto 12px;">{icon_eye}</div>
+                    <h4 style="color: {theme['text']}; font-size: 15px; font-weight: 600; margin: 0 0 8px;">Professionals</h4>
+                    <p style="color: {theme['text_secondary']}; font-size: 13px; line-height: 1.5; margin: 0;">
+                        Make good work undeniable with a second opinion
+                    </p>
+                </div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # =============================================
+        # VALUE PROPS (3 cards)
+        # =============================================
+        st.markdown(f"""
+        <div style="max-width: 800px; margin: 0 auto 80px; padding: 0 20px; font-family: 'Poppins', sans-serif;">
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px;">
+                <div style="background: {theme['card']}; border: 1px solid {theme['border']}; border-radius: 12px; padding: 24px; text-align: center;">
+                    <div style="margin: 0 auto 12px;">{icon_clock}</div>
+                    <h4 style="color: {theme['text']}; font-size: 15px; font-weight: 600; margin: 0 0 8px;">Save Time</h4>
+                    <p style="color: {theme['text_secondary']}; font-size: 13px; line-height: 1.5; margin: 0;">
+                        Automate tedious QA checks that used to take hours
+                    </p>
+                </div>
+                <div style="background: {theme['card']}; border: 1px solid {theme['border']}; border-radius: 12px; padding: 24px; text-align: center;">
+                    <div style="margin: 0 auto 12px;">{icon_rocket}</div>
+                    <h4 style="color: {theme['text']}; font-size: 15px; font-weight: 600; margin: 0 0 8px;">Speed Up Workflow</h4>
+                    <p style="color: {theme['text_secondary']}; font-size: 13px; line-height: 1.5; margin: 0;">
+                        From raw footage to delivery-ready in minutes
+                    </p>
+                </div>
+                <div style="background: {theme['card']}; border: 1px solid {theme['border']}; border-radius: 12px; padding: 24px; text-align: center;">
+                    <div style="margin: 0 auto 12px;">{icon_sparkle}</div>
+                    <h4 style="color: {theme['text']}; font-size: 15px; font-weight: 600; margin: 0 0 8px;">Elevate Quality</h4>
+                    <p style="color: {theme['text_secondary']}; font-size: 13px; line-height: 1.5; margin: 0;">
+                        Catch issues before your clients do
+                    </p>
+                </div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # =============================================
+        # WHERE WE'RE STARTING - Real Estate
+        # =============================================
+        st.markdown(f"""
+        <div style="background: {theme['card']}; border-top: 1px solid {theme['border']}; border-bottom: 1px solid {theme['border']}; padding: 80px 20px; margin-bottom: 80px; font-family: 'Poppins', sans-serif;">
+            <div style="max-width: 900px; margin: 0 auto; text-align: center;">
+                <p style="color: {theme['text_muted']}; font-size: 12px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; margin: 0 0 12px 0;">Where We're Starting</p>
+                <h2 style="color: {theme['text']}; font-size: 36px; font-weight: 700; margin: 0 0 40px 0;">
+                    Real Estate Media
+                </h2>
+                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px;">
+                    <div style="background: {theme['bg']}; border: 1px solid {theme['border']}; border-radius: 12px; padding: 24px; text-align: center;">
+                        <div style="margin: 0 auto 12px;">{icon_video}</div>
+                        <h4 style="color: {theme['text']}; font-size: 15px; font-weight: 600; margin: 0 0 8px;">Video QA</h4>
+                        <p style="color: {theme['text_secondary']}; font-size: 13px; line-height: 1.5; margin: 0;">
+                            Resolution, audio, color grading, and 20+ checks
+                        </p>
+                    </div>
+                    <div style="background: {theme['bg']}; border: 1px solid {theme['border']}; border-radius: 12px; padding: 24px; text-align: center;">
+                        <div style="margin: 0 auto 12px;">{icon_camera}</div>
+                        <h4 style="color: {theme['text']}; font-size: 15px; font-weight: 600; margin: 0 0 8px;">Photo QA</h4>
+                        <p style="color: {theme['text_secondary']}; font-size: 13px; line-height: 1.5; margin: 0;">
+                            Exposure, white balance, sharpness, and more
+                        </p>
+                    </div>
+                    <div style="background: {theme['bg']}; border: 1px solid {theme['border']}; border-radius: 12px; padding: 24px; text-align: center;">
+                        <div style="margin: 0 auto 12px;">{icon_house}</div>
+                        <h4 style="color: {theme['text']}; font-size: 15px; font-weight: 600; margin: 0 0 8px;">Room Detection</h4>
+                        <p style="color: {theme['text_secondary']}; font-size: 13px; line-height: 1.5; margin: 0;">
+                            AI identifies 40+ room types automatically
+                        </p>
+                    </div>
+                    <div style="background: {theme['bg']}; border: 1px solid {theme['border']}; border-radius: 12px; padding: 24px; text-align: center;">
+                        <div style="margin: 0 auto 12px;">{icon_folder}</div>
+                        <h4 style="color: {theme['text']}; font-size: 15px; font-weight: 600; margin: 0 0 8px;">Auto Sort</h4>
+                        <p style="color: {theme['text_secondary']}; font-size: 13px; line-height: 1.5; margin: 0;">
+                            Organize and rename in delivery order
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # =============================================
+        # WHERE WE'RE GOING - Full Creative Director
+        # =============================================
+        st.markdown(f"""
+        <div style="max-width: 900px; margin: 0 auto 80px; padding: 0 20px; font-family: 'Poppins', sans-serif; text-align: center;">
+            <p style="color: {theme['text_muted']}; font-size: 12px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; margin: 0 0 12px 0;">Where We're Going</p>
+            <h2 style="color: {theme['text']}; font-size: 36px; font-weight: 700; margin: 0 0 16px 0;">
+                The Full Creative Director
+            </h2>
+            <p style="color: {theme['text_secondary']}; font-size: 16px; max-width: 700px; margin: 0 auto 40px;">
+                Real estate is the launchpad. The long-term vision is for Proof to be the quality control layer for all visual and audio media across every genre and format.
+            </p>
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; text-align: center;">
+                <div style="background: {theme['card']}; border: 1px solid {theme['border']}; border-radius: 12px; padding: 24px; text-align: center;">
+                    <div style="margin: 0 auto 12px;">{icon_layers}</div>
+                    <span style="color: {theme['text_muted']}; font-size: 10px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase;">Coming Soon</span>
+                    <h4 style="color: {theme['text']}; font-size: 15px; font-weight: 600; margin: 8px 0;">Color Grading Analysis</h4>
+                    <p style="color: {theme['text_secondary']}; font-size: 13px; line-height: 1.5; margin: 0;">
+                        Skin tone evaluation, grade consistency, contrast ratios
+                    </p>
+                </div>
+                <div style="background: {theme['card']}; border: 1px solid {theme['border']}; border-radius: 12px; padding: 24px; text-align: center;">
+                    <div style="margin: 0 auto 12px;">{icon_compass}</div>
+                    <span style="color: {theme['text_muted']}; font-size: 10px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase;">Coming Soon</span>
+                    <h4 style="color: {theme['text']}; font-size: 15px; font-weight: 600; margin: 8px 0;">Storytelling Analysis</h4>
+                    <p style="color: {theme['text_secondary']}; font-size: 13px; line-height: 1.5; margin: 0;">
+                        Pacing, emotional arc, edit rhythm, opening hooks
+                    </p>
+                </div>
+                <div style="background: {theme['card']}; border: 1px solid {theme['border']}; border-radius: 12px; padding: 24px; text-align: center;">
+                    <div style="margin: 0 auto 12px;">{icon_zap}</div>
+                    <span style="color: {theme['text_muted']}; font-size: 10px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase;">Coming Soon</span>
+                    <h4 style="color: {theme['text']}; font-size: 15px; font-weight: 600; margin: 8px 0;">Sound Design</h4>
+                    <p style="color: {theme['text_secondary']}; font-size: 13px; line-height: 1.5; margin: 0;">
+                        Music-visual matching, sound effects, audio transitions
+                    </p>
+                </div>
+                <div style="background: {theme['card']}; border: 1px solid {theme['border']}; border-radius: 12px; padding: 24px; text-align: center;">
+                    <div style="margin: 0 auto 12px;">{icon_camera}</div>
+                    <span style="color: {theme['text_muted']}; font-size: 10px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase;">Coming Soon</span>
+                    <h4 style="color: {theme['text']}; font-size: 15px; font-weight: 600; margin: 8px 0;">Portrait Photography</h4>
+                    <p style="color: {theme['text_secondary']}; font-size: 13px; line-height: 1.5; margin: 0;">
+                        Lighting quality, eye focus, background analysis
+                    </p>
+                </div>
+                <div style="background: {theme['card']}; border: 1px solid {theme['border']}; border-radius: 12px; padding: 24px; text-align: center;">
+                    <div style="margin: 0 auto 12px;">{icon_target}</div>
+                    <span style="color: {theme['text_muted']}; font-size: 10px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase;">Coming Soon</span>
+                    <h4 style="color: {theme['text']}; font-size: 15px; font-weight: 600; margin: 8px 0;">Product Photography</h4>
+                    <p style="color: {theme['text_secondary']}; font-size: 13px; line-height: 1.5; margin: 0;">
+                        Lighting consistency, shadow quality, color accuracy
+                    </p>
+                </div>
+                <div style="background: {theme['card']}; border: 1px solid {theme['border']}; border-radius: 12px; padding: 24px; text-align: center;">
+                    <div style="margin: 0 auto 12px;">{icon_eye}</div>
+                    <span style="color: {theme['text_muted']}; font-size: 10px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase;">Coming Soon</span>
+                    <h4 style="color: {theme['text']}; font-size: 15px; font-weight: 600; margin: 8px 0;">Cross-Element Synthesis</h4>
+                    <p style="color: {theme['text_secondary']}; font-size: 13px; line-height: 1.5; margin: 0;">
+                        How color, sound, pacing work together
+                    </p>
+                </div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # =============================================
+        # BOTTOM CTA
+        # =============================================
+        st.markdown(f"""
+        <div style="text-align: center; padding: 60px 20px 80px; font-family: 'Poppins', sans-serif;">
+            <h2 style="color: {theme['text']}; font-size: 32px; font-weight: 700; margin: 0 0 16px 0;">
+                Ready to stop sucking?
+            </h2>
+            <p style="color: {theme['text_secondary']}; font-size: 16px; margin: 0 0 30px 0;">
+                Quality should be the baseline, not the exception.
+            </p>
+            <a href="?page=video" target="_self" style="display: inline-block; background: {theme['text']}; color: {theme['bg']}; padding: 18px 48px; border-radius: 8px; font-weight: 600; font-size: 17px; text-decoration: none;">
+                Get Started
+            </a>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # Footer
+        render_footer()
+        return
+
+    # =============================================
     # ABOUT PAGE - Professional SaaS Design
     # =============================================
     if app_mode == "About":
@@ -13641,6 +14380,155 @@ def main():
         """, unsafe_allow_html=True)
 
         # Footer with stats
+        render_footer()
+        return
+
+    # =============================================
+    # ADMIN DASHBOARD - Only for shawn@aerialcanvas.com
+    # =============================================
+    if app_mode == "Admin":
+        # Security check - only admin can access
+        if not user_db.is_admin(user_info.get('email', '')):
+            st.error("Access denied. Admin only.")
+            return
+
+        # Header with gear icon
+        gear_icon = icon('gear', 24)
+        st.markdown(f"""
+        <div style="text-align: center; margin-bottom: 30px;">
+            <div style="display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 8px;">
+                {gear_icon}
+                <h2 style="color: {theme['text']}; margin: 0;">Admin Dashboard</h2>
+            </div>
+            <p style="color: {theme['text_secondary']}; font-size: 14px;">User management and analytics</p>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # Get all the data
+        all_users = user_db.get_all_users_with_stats()
+        waitlist = user_db.get_waitlist()
+        aggregate_stats = user_db.get_aggregate_stats()
+        total_users = user_db.get_total_users()
+        total_team = user_db.get_total_team_members()
+        waitlist_count = user_db.get_waitlist_count()
+
+        # Summary cards
+        total_files = aggregate_stats['total_videos'] + aggregate_stats['total_photos']
+        total_issues = aggregate_stats['total_issues']
+        st.markdown(f"""
+        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 30px;">
+            <div style="background: {theme['card']}; border: 1px solid {theme['border']}; border-radius: 12px; padding: 20px; text-align: center;">
+                <div style="color: {theme['text']}; font-size: 32px; font-weight: 700;">{total_team}</div>
+                <div style="color: {theme['text_secondary']}; font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">Team Users</div>
+            </div>
+            <div style="background: {theme['card']}; border: 1px solid {theme['border']}; border-radius: 12px; padding: 20px; text-align: center;">
+                <div style="color: {theme['text']}; font-size: 32px; font-weight: 700;">{waitlist_count}</div>
+                <div style="color: {theme['text_secondary']}; font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">Waitlist</div>
+            </div>
+            <div style="background: {theme['card']}; border: 1px solid {theme['border']}; border-radius: 12px; padding: 20px; text-align: center;">
+                <div style="color: {theme['text']}; font-size: 32px; font-weight: 700;">{total_files:,}</div>
+                <div style="color: {theme['text_secondary']}; font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">Files Analyzed</div>
+            </div>
+            <div style="background: {theme['card']}; border: 1px solid {theme['border']}; border-radius: 12px; padding: 20px; text-align: center;">
+                <div style="color: {theme['text']}; font-size: 32px; font-weight: 700;">{total_issues:,}</div>
+                <div style="color: {theme['text_secondary']}; font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">Issues Found</div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # Time saved calculation
+        total_seconds = aggregate_stats['total_time_saved_seconds']
+        hours = total_seconds // 3600
+        minutes = (total_seconds % 3600) // 60
+        time_saved_str = f"{hours}h {minutes}m" if hours > 0 else f"{minutes}m"
+
+        st.markdown(f"""
+        <div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); border-radius: 12px; padding: 20px; margin-bottom: 30px; text-align: center;">
+            <div style="color: white; font-size: 14px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px;">Total Time Saved</div>
+            <div style="color: white; font-size: 36px; font-weight: 700;">{time_saved_str}</div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # Team Users Table
+        users_icon = icon('users', 20)
+        st.markdown(f"""
+        <div style="display: flex; align-items: center; gap: 8px; margin: 30px 0 16px 0;">
+            {users_icon}
+            <h3 style="color: {theme['text']}; margin: 0;">Team Users ({total_team})</h3>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # Filter team users
+        team_users = [u for u in all_users if u.get('is_team_member')]
+
+        if team_users:
+            # Use Streamlit's native dataframe for reliable rendering
+            import pandas as pd
+
+            user_data = []
+            for user in team_users:
+                last_login = user.get('last_login', 'Never')
+                if last_login and last_login != 'Never':
+                    try:
+                        from datetime import datetime
+                        dt = datetime.fromisoformat(last_login.replace('Z', '+00:00'))
+                        last_login = dt.strftime('%b %d, %Y')
+                    except:
+                        pass
+
+                files_analyzed = user.get('videos_analyzed', 0) + user.get('photos_analyzed', 0)
+                time_saved_sec = user.get('time_saved_seconds', 0)
+                time_min = time_saved_sec // 60
+
+                user_data.append({
+                    'Name': user.get('name', 'Unknown'),
+                    'Email': user.get('email', ''),
+                    'Logins': user.get('login_count', 0),
+                    'Files': files_analyzed,
+                    'Issues': user.get('issues_found', 0),
+                    'Time Saved': f"{time_min}m",
+                    'Last Login': last_login
+                })
+
+            df = pd.DataFrame(user_data)
+            st.dataframe(df, use_container_width=True, hide_index=True)
+        else:
+            st.info("No team users yet.")
+
+        # Waitlist Table
+        clipboard_icon = icon('clipboard', 20)
+        st.markdown(f"""
+        <div style="display: flex; align-items: center; gap: 8px; margin: 40px 0 16px 0;">
+            {clipboard_icon}
+            <h3 style="color: {theme['text']}; margin: 0;">Waitlist ({waitlist_count})</h3>
+        </div>
+        """, unsafe_allow_html=True)
+
+        if waitlist:
+            import pandas as pd
+
+            waitlist_data = []
+            for entry in waitlist:
+                signup_date = entry.get('signup_date', '')
+                if signup_date:
+                    try:
+                        from datetime import datetime
+                        dt = datetime.fromisoformat(signup_date.replace('Z', '+00:00'))
+                        signup_date = dt.strftime('%b %d, %Y')
+                    except:
+                        pass
+
+                waitlist_data.append({
+                    'Name': entry.get('name', 'Unknown'),
+                    'Email': entry.get('email', ''),
+                    'Signed Up': signup_date
+                })
+
+            df_waitlist = pd.DataFrame(waitlist_data)
+            st.dataframe(df_waitlist, use_container_width=True, hide_index=True)
+        else:
+            st.info("No one on the waitlist yet.")
+
         render_footer()
         return
 
@@ -13817,7 +14705,7 @@ def main():
 
         with info_col:
             st.markdown(f"""
-            <div style="background: {theme['card']}; border: 1px solid {theme['border']}; border-radius: 12px; padding: 20px; min-height: 180px;">
+            <div style="background: {theme['card']}; border: 1px solid {theme['border']}; border-radius: 12px; padding: 20px; height: 200px; box-sizing: border-box;">
                 <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 16px;">
                     {icon('info', 18)}
                     <span style="color: {theme['text']}; font-weight: 600; font-size: 15px;">How it Works</span>
@@ -13833,10 +14721,12 @@ def main():
 
         with score_col:
             st.markdown(f"""
-            <div style="background: {theme['card']}; border: 1px solid {theme['border']}; border-radius: 12px; padding: 20px; min-height: 180px;">
-                <div style="color: {theme['text']}; font-weight: 600; font-size: 15px; margin-bottom: 16px;">QA Score</div>
-                <div style="color: {theme['text_secondary']}; font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 12px;">Score Tiers</div>
-                <div style="display: flex; flex-direction: column; gap: 10px;">
+            <div style="background: {theme['card']}; border: 1px solid {theme['border']}; border-radius: 12px; padding: 20px; height: 200px; box-sizing: border-box;">
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
+                    <span style="color: {theme['text']}; font-weight: 600; font-size: 15px;">QA Score</span>
+                    <span style="color: {theme['text_secondary']}; font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em;">Score Tiers</span>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 8px;">
                     <div style="display: flex; align-items: center; gap: 10px;">
                         <span style="width: 8px; height: 8px; background: #4ade80; border-radius: 50%; display: inline-block;"></span>
                         <span style="color: #4ade80; font-size: 13px; font-weight: 600; width: 52px;">90-100</span>
