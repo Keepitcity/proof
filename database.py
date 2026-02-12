@@ -34,9 +34,31 @@ class UserDatabase:
                 is_waitlist BOOLEAN DEFAULT FALSE,
                 first_login TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 last_login TIMESTAMP,
-                login_count INTEGER DEFAULT 0
+                login_count INTEGER DEFAULT 0,
+                display_name TEXT,
+                job_title TEXT,
+                department TEXT,
+                phone TEXT
             )
         ''')
+
+        # Migration: Add new columns if they don't exist (for existing databases)
+        try:
+            cursor.execute('ALTER TABLE users ADD COLUMN display_name TEXT')
+        except sqlite3.OperationalError:
+            pass  # Column already exists
+        try:
+            cursor.execute('ALTER TABLE users ADD COLUMN job_title TEXT')
+        except sqlite3.OperationalError:
+            pass
+        try:
+            cursor.execute('ALTER TABLE users ADD COLUMN department TEXT')
+        except sqlite3.OperationalError:
+            pass
+        try:
+            cursor.execute('ALTER TABLE users ADD COLUMN phone TEXT')
+        except sqlite3.OperationalError:
+            pass
 
         # User stats table - aggregate stats per user
         cursor.execute('''
@@ -336,6 +358,58 @@ class UserDatabase:
         """Check if user is an admin (currently just shawn@aerialcanvas.com)"""
         admin_emails = ['shawn@aerialcanvas.com']
         return email.lower() in [e.lower() for e in admin_emails]
+
+    # User Profile management
+    def get_user_profile(self, email: str) -> Optional[Dict]:
+        """Get user profile including editable fields"""
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT email, name, picture_url, display_name, job_title, department, phone,
+                   first_login, last_login, login_count, is_team_member
+            FROM users WHERE email = ?
+        ''', (email,))
+        row = cursor.fetchone()
+        conn.close()
+        return dict(row) if row else None
+
+    def update_user_profile(self, email: str, display_name: str = None,
+                           job_title: str = None, department: str = None,
+                           phone: str = None) -> bool:
+        """Update user's profile fields"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+
+        # Build dynamic update query based on provided fields
+        updates = []
+        values = []
+
+        if display_name is not None:
+            updates.append('display_name = ?')
+            values.append(display_name)
+        if job_title is not None:
+            updates.append('job_title = ?')
+            values.append(job_title)
+        if department is not None:
+            updates.append('department = ?')
+            values.append(department)
+        if phone is not None:
+            updates.append('phone = ?')
+            values.append(phone)
+
+        if not updates:
+            conn.close()
+            return False
+
+        values.append(email)
+        query = f"UPDATE users SET {', '.join(updates)} WHERE email = ?"
+
+        cursor.execute(query, values)
+        updated = cursor.rowcount > 0
+        conn.commit()
+        conn.close()
+        return updated
 
 
 # Global instance

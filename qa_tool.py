@@ -44,8 +44,8 @@ except ImportError:
 # Dropbox API credentials (Aerial Canvas QA Tool)
 DROPBOX_APP_KEY = "ta9b2km6af2j2h4"
 DROPBOX_APP_SECRET = "wknntqselzkuqof"
-# Permanent refresh token for Aerial Canvas team account (hello@aerialcanvas.com)
-DROPBOX_REFRESH_TOKEN = "cdDHvuUtSaMAAAAAAAAAAXzQvVUR4-GnbOo-nC-_UgeCKyjsV7eOnLXAetCui0Z6"
+# Permanent refresh token for Aerial Canvas team account
+DROPBOX_REFRESH_TOKEN = "b8xFNFBk9osAAAAAAAAAAdYMSxGk-bAdzR7ULpn7JaBWmljCXV5IfnbiF0cqWW8q"
 
 def get_dropbox_auth_flow():
     """Create Dropbox OAuth flow"""
@@ -13254,6 +13254,7 @@ def main():
             "video_sort": ("Video Sort", "Auto Sort"),
             "about": ("About", "About"),
             "admin": ("Admin", "Admin"),
+            "profile": ("Profile", "Profile"),
         }
         if page_param in page_map:
             new_page, new_mode = page_map[page_param]
@@ -13434,8 +13435,9 @@ def main():
                 </div>
                 <div class="proof-user-dropdown-content">
                     <div style="background: {theme['bg_secondary']}; border: 1px solid {theme['border']}; border-radius: 8px; padding: 8px 0; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+                        <a href="{build_nav_url('profile')}" target="_parent" style="display: block; padding: 10px 16px; color: {theme['text']}; text-decoration: none; font-size: 13px; font-weight: 500; border-bottom: 1px solid {theme['border']};"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 6px;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>Profile</a>
                         {admin_link_html}
-                        <a href="?action=signout&clear_storage=1" target="_parent" style="display: block; padding: 10px 16px; color: {theme['text']}; text-decoration: none; font-size: 13px; font-weight: 500;">Sign Out</a>
+                        <a href="?action=signout&clear_storage=1" target="_parent" style="display: block; padding: 10px 16px; color: {theme['text']}; text-decoration: none; font-size: 13px; font-weight: 500;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 6px;"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>Sign Out</a>
                     </div>
                 </div>
             </div>
@@ -14501,6 +14503,131 @@ def main():
             st.dataframe(df_waitlist, use_container_width=True, hide_index=True)
         else:
             st.info("No one on the waitlist yet.")
+
+        render_footer()
+        return
+
+    # =============================================
+    # PROFILE PAGE - User Profile Management
+    # =============================================
+    if app_mode == "Profile":
+        # Get user's current profile
+        user_email = user_info.get('email', '')
+        profile = user_db.get_user_profile(user_email)
+
+        # Profile icon
+        profile_icon = '''<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>'''
+
+        st.markdown(f"""
+        <div style="text-align: center; margin-bottom: 30px;">
+            <div style="display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 8px;">
+                <span style="color: {theme['text']};">{profile_icon}</span>
+                <h2 style="color: {theme['text']}; margin: 0;">Your Profile</h2>
+            </div>
+            <p style="color: {theme['text_secondary']}; font-size: 14px;">Manage your account information</p>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # Profile card with picture and info
+        picture_url = profile.get('picture_url', '') if profile else ''
+        google_name = profile.get('name', 'User') if profile else 'User'
+        display_name = profile.get('display_name', '') if profile else ''
+        job_title = profile.get('job_title', '') if profile else ''
+        department = profile.get('department', '') if profile else ''
+        phone = profile.get('phone', '') if profile else ''
+        member_since = profile.get('first_login', '') if profile else ''
+        login_count = profile.get('login_count', 0) if profile else 0
+
+        # Format member since date
+        if member_since:
+            try:
+                from datetime import datetime
+                dt = datetime.fromisoformat(member_since.replace('Z', '+00:00'))
+                member_since_str = dt.strftime('%B %d, %Y')
+            except:
+                member_since_str = member_since
+        else:
+            member_since_str = 'Today'
+
+        # Profile header with picture
+        st.markdown(f"""
+        <div style="background: {theme['card']}; border: 1px solid {theme['border']}; border-radius: 16px; padding: 30px; margin-bottom: 24px;">
+            <div style="display: flex; align-items: center; gap: 24px;">
+                <div style="width: 100px; height: 100px; border-radius: 50%; background: {theme['border']}; display: flex; align-items: center; justify-content: center; font-size: 36px; font-weight: 600; color: {theme['text']}; overflow: hidden; border: 3px solid {theme['border']}; flex-shrink: 0;">
+                    {f'<img src="{picture_url}" style="width: 100%; height: 100%; object-fit: cover;">' if picture_url else google_name[0].upper()}
+                </div>
+                <div style="flex: 1;">
+                    <div style="color: {theme['text']}; font-size: 24px; font-weight: 700; margin-bottom: 4px;">{display_name or google_name}</div>
+                    <div style="color: {theme['text_secondary']}; font-size: 14px; margin-bottom: 8px;">{user_email}</div>
+                    <div style="display: flex; gap: 16px;">
+                        <span style="color: {theme['text_muted']}; font-size: 12px;">Member since {member_since_str}</span>
+                        <span style="color: {theme['text_muted']}; font-size: 12px;">{login_count} logins</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # Edit Profile Form
+        st.markdown(f"""
+        <div style="color: {theme['text']}; font-weight: 600; font-size: 16px; margin-bottom: 16px;">Edit Profile</div>
+        """, unsafe_allow_html=True)
+
+        # Use a form for profile updates
+        with st.form("profile_form"):
+            col1, col2 = st.columns(2)
+
+            with col1:
+                new_display_name = st.text_input(
+                    "Display Name",
+                    value=display_name or google_name,
+                    help="Your preferred name (shown in the app)"
+                )
+                new_job_title = st.text_input(
+                    "Job Title",
+                    value=job_title,
+                    placeholder="e.g., Video Editor, Photographer",
+                    help="Your role at Aerial Canvas"
+                )
+
+            with col2:
+                new_department = st.text_input(
+                    "Department",
+                    value=department,
+                    placeholder="e.g., Production, Post-Production",
+                    help="Your team or department"
+                )
+                new_phone = st.text_input(
+                    "Phone Number",
+                    value=phone,
+                    placeholder="e.g., (555) 123-4567",
+                    help="Contact number (optional)"
+                )
+
+            # Email shown as read-only
+            st.markdown(f"""
+            <div style="margin-top: 8px; margin-bottom: 16px;">
+                <div style="color: {theme['text_secondary']}; font-size: 12px; margin-bottom: 4px;">Email (from Google - cannot be changed)</div>
+                <div style="background: {theme['bg_secondary']}; border: 1px solid {theme['border']}; border-radius: 8px; padding: 12px; color: {theme['text_muted']};">{user_email}</div>
+            </div>
+            """, unsafe_allow_html=True)
+
+            submitted = st.form_submit_button("Save Changes", use_container_width=True)
+
+            if submitted:
+                # Update the profile
+                success = user_db.update_user_profile(
+                    email=user_email,
+                    display_name=new_display_name if new_display_name != google_name else new_display_name,
+                    job_title=new_job_title,
+                    department=new_department,
+                    phone=new_phone
+                )
+                if success:
+                    st.success("Profile updated successfully!")
+                    st.rerun()
+                else:
+                    st.error("Failed to update profile. Please try again.")
 
         render_footer()
         return
