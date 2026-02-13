@@ -16757,12 +16757,16 @@ def main():
         </div>
         """, unsafe_allow_html=True)
 
-        # Feature cards
+        # Feature cards — SVG icons (black & white)
+        cx_phone_icon = '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>'
+        cx_chat_icon = '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>'
+        cx_email_icon = '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>'
+
         cx_col1, cx_col2, cx_col3 = st.columns(3)
         with cx_col1:
             st.markdown(f"""
             <div style="background: {theme['bg_secondary']}; border: 1px solid {theme['border']}; border-radius: 12px; padding: 20px; text-align: center;">
-                <div style="font-size: 28px; margin-bottom: 8px;">📞</div>
+                <div style="margin-bottom: 8px; color: {theme['text']};">{cx_phone_icon}</div>
                 <div style="color: {theme['text']}; font-weight: 600; font-size: 14px;">Phone Call</div>
                 <div style="color: {theme['text_muted']}; font-size: 12px; margin-top: 4px;">Talk live with an AI client using your mic</div>
             </div>
@@ -16770,7 +16774,7 @@ def main():
         with cx_col2:
             st.markdown(f"""
             <div style="background: {theme['bg_secondary']}; border: 1px solid {theme['border']}; border-radius: 12px; padding: 20px; text-align: center;">
-                <div style="font-size: 28px; margin-bottom: 8px;">💬</div>
+                <div style="margin-bottom: 8px; color: {theme['text']};">{cx_chat_icon}</div>
                 <div style="color: {theme['text']}; font-weight: 600; font-size: 14px;">Text Chat</div>
                 <div style="color: {theme['text_muted']}; font-size: 12px; margin-top: 4px;">Practice consultations via text messaging</div>
             </div>
@@ -16778,7 +16782,7 @@ def main():
         with cx_col3:
             st.markdown(f"""
             <div style="background: {theme['bg_secondary']}; border: 1px solid {theme['border']}; border-radius: 12px; padding: 20px; text-align: center;">
-                <div style="font-size: 28px; margin-bottom: 8px;">📧</div>
+                <div style="margin-bottom: 8px; color: {theme['text']};">{cx_email_icon}</div>
                 <div style="color: {theme['text']}; font-weight: 600; font-size: 14px;">Email</div>
                 <div style="color: {theme['text_muted']}; font-size: 12px; margin-top: 4px;">Draft and respond to client emails</div>
             </div>
@@ -16801,6 +16805,10 @@ def main():
             st.session_state.cx_start_time = None
         if 'cx_mode' not in st.session_state:
             st.session_state.cx_mode = "Text Chat"
+        if 'cx_ringing' not in st.session_state:
+            st.session_state.cx_ringing = False
+        if 'cx_opening_spoken' not in st.session_state:
+            st.session_state.cx_opening_spoken = True
 
         # Check for API keys
         cx_has_groq = False
@@ -16835,7 +16843,7 @@ def main():
                 # Mode selector
                 cx_mode = st.radio(
                     "Training Mode",
-                    ["📞 Phone Call", "💬 Text Chat", "📧 Email"],
+                    ["Phone Call", "Text Chat", "Email"],
                     horizontal=True,
                     key="cx_mode_radio",
                     label_visibility="collapsed",
@@ -16854,9 +16862,9 @@ def main():
 
                 # Mode-specific labels
                 mode_labels = {
-                    "📞 Phone Call": ("📞  Start Call", "Connecting call..."),
-                    "💬 Text Chat": ("💬  Start Chat", "Starting chat..."),
-                    "📧 Email": ("📧  Start Email Thread", "Generating email..."),
+                    "Phone Call": ("Start Call", "Connecting call..."),
+                    "Text Chat": ("Start Chat", "Starting chat..."),
+                    "Email": ("Start Email Thread", "Generating email..."),
                 }
                 btn_label, spinner_label = mode_labels.get(cx_mode, ("Start", "Starting..."))
 
@@ -16880,7 +16888,66 @@ def main():
                             st.session_state.cx_call_active = True
                             st.session_state.cx_start_time = time.time()
                             st.session_state.cx_opening_spoken = False
+                            # For phone mode, set ringing state
+                            if "Phone Call" in cx_mode:
+                                st.session_state.cx_ringing = True
                             st.rerun()
+
+            # ---- STATE: Phone is ringing ----
+            elif st.session_state.get('cx_ringing', False) and st.session_state.cx_session:
+                session = st.session_state.cx_session
+                persona = session.scenario.client_persona
+                cx_ring_seed = persona.name.replace(" ", "")
+                cx_ring_avatar = f"https://api.dicebear.com/7.x/notionists/svg?seed={cx_ring_seed}&backgroundColor=b6e3f4,c0aede,d1d4f9&size=80"
+
+                st.markdown(f"""
+                <div style="background: linear-gradient(135deg, #1a1a2e, #16213e); border-radius: 16px; padding: 48px; text-align: center; margin-bottom: 20px;">
+                    <img src="{cx_ring_avatar}" style="width: 80px; height: 80px; border-radius: 50%; border: 3px solid #9461F5; margin-bottom: 16px;" alt="{persona.name}" />
+                    <div style="color: #FFFFFF; font-size: 20px; font-weight: 600; margin-bottom: 4px;">{persona.name}</div>
+                    <div style="color: #a1a1aa; font-size: 14px; margin-bottom: 24px;">{persona.company}</div>
+                    <div style="color: #22c55e; font-size: 16px; font-weight: 600; animation: pulse 1.5s infinite;">Calling...</div>
+                </div>
+                <style>
+                @keyframes pulse {{
+                    0%, 100% {{ opacity: 1; }}
+                    50% {{ opacity: 0.3; }}
+                }}
+                </style>
+                """, unsafe_allow_html=True)
+
+                # Play ringing sound via Web Audio API
+                import streamlit.components.v1 as cx_ring_comp
+                cx_ring_comp.html("""
+                <script>
+                    (function() {
+                        var ctx = new (window.AudioContext || window.webkitAudioContext)();
+                        function ring(startTime) {
+                            // Ring tone: two short beeps
+                            for (var i = 0; i < 2; i++) {
+                                var osc = ctx.createOscillator();
+                                var gain = ctx.createGain();
+                                osc.connect(gain);
+                                gain.connect(ctx.destination);
+                                osc.frequency.value = 440;
+                                osc.type = 'sine';
+                                gain.gain.value = 0.15;
+                                osc.start(startTime + i * 0.3);
+                                osc.stop(startTime + i * 0.3 + 0.2);
+                            }
+                        }
+                        // Ring 3 times with pauses
+                        ring(ctx.currentTime + 0.2);
+                        ring(ctx.currentTime + 1.2);
+                        ring(ctx.currentTime + 2.2);
+                    })();
+                </script>
+                """, height=0)
+
+                # After 3 seconds, transition to active call
+                import time as cx_time
+                cx_time.sleep(3)
+                st.session_state.cx_ringing = False
+                st.rerun()
 
             # ---- STATE: Call is active ----
             elif st.session_state.cx_call_active and st.session_state.cx_session:
@@ -16888,14 +16955,15 @@ def main():
                 scenario = session.scenario
                 persona = scenario.client_persona
 
-                # Call header
+                # Call header — with DiceBear avatar
+                cx_avatar_seed = persona.name.replace(" ", "")
+                cx_avatar_url = f"https://api.dicebear.com/7.x/notionists/svg?seed={cx_avatar_seed}&backgroundColor=b6e3f4,c0aede,d1d4f9&size=52"
+
                 st.markdown(f"""
                 <div style="background: linear-gradient(135deg, #1a1a2e, #16213e); border-radius: 16px; padding: 24px; margin-bottom: 20px;">
                     <div style="display: flex; align-items: center; justify-content: space-between;">
                         <div style="display: flex; align-items: center; gap: 16px;">
-                            <div style="width: 52px; height: 52px; background: linear-gradient(135deg, #9461F5, #7C3AED); border-radius: 50%; display: flex; align-items: center; justify-content: center;">
-                                <span style="color: white; font-size: 22px; font-weight: 700;">{persona.name[0]}</span>
-                            </div>
+                            <img src="{cx_avatar_url}" style="width: 52px; height: 52px; border-radius: 50%; border: 2px solid #9461F5;" alt="{persona.name}" />
                             <div>
                                 <div style="color: #FFFFFF; font-size: 18px; font-weight: 600;">{persona.name}</div>
                                 <div style="color: #a1a1aa; font-size: 13px;">{persona.company}</div>
@@ -16921,7 +16989,7 @@ def main():
                 """, unsafe_allow_html=True)
 
                 # Messages — styled by mode
-                cx_current_mode = st.session_state.get('cx_mode', '💬 Text Chat')
+                cx_current_mode = st.session_state.get('cx_mode', 'Text Chat')
                 cx_is_email = "Email" in cx_current_mode
 
                 for msg in session.messages:
@@ -16950,12 +17018,12 @@ def main():
                             """, unsafe_allow_html=True)
                     else:
                         # Chat bubble style (Text Chat & Phone Call)
+                        cx_bubble_seed = persona.name.replace(" ", "")
+                        cx_bubble_avatar = f"https://api.dicebear.com/7.x/notionists/svg?seed={cx_bubble_seed}&backgroundColor=b6e3f4,c0aede,d1d4f9&size=32"
                         if msg.role == "client":
                             st.markdown(f"""
                             <div style="display: flex; gap: 10px; margin-bottom: 12px;">
-                                <div style="width: 32px; height: 32px; min-width: 32px; background: linear-gradient(135deg, #9461F5, #7C3AED); border-radius: 50%; display: flex; align-items: center; justify-content: center;">
-                                    <span style="color: white; font-size: 13px; font-weight: 700;">{persona.name[0]}</span>
-                                </div>
+                                <img src="{cx_bubble_avatar}" style="width: 32px; height: 32px; min-width: 32px; border-radius: 50%; border: 1.5px solid #9461F5;" alt="{persona.name}" />
                                 <div style="background: {theme['bg_secondary']}; border: 1px solid {theme['border']}; border-radius: 12px; border-top-left-radius: 4px; padding: 12px 16px; max-width: 80%;">
                                     <div style="color: {theme['text']}; font-size: 14px; line-height: 1.5;">{msg.content}</div>
                                 </div>
@@ -16971,7 +17039,7 @@ def main():
                             """, unsafe_allow_html=True)
 
                 # Speak the client's opening line on first load (Phone Call mode only)
-                cx_current_mode = st.session_state.get('cx_mode', '💬 Text Chat')
+                cx_current_mode = st.session_state.get('cx_mode', 'Text Chat')
                 if "Phone Call" in cx_current_mode and not st.session_state.get('cx_opening_spoken', True):
                     st.session_state.cx_opening_spoken = True
                     if session.messages:
@@ -17071,7 +17139,7 @@ def main():
                     )
                     cx_email_col1, cx_email_col2, cx_email_col3 = st.columns([1, 1, 1])
                     with cx_email_col2:
-                        if st.button("📧  Send Reply", key="cx_email_send", use_container_width=True):
+                        if st.button("Send Reply", key="cx_email_send", use_container_width=True):
                             if cx_email_input and cx_email_input.strip():
                                 cx_user_input = cx_email_input.strip()
                                 cx_send = True
@@ -17140,7 +17208,7 @@ def main():
                 st.markdown("<div style='height: 12px'></div>", unsafe_allow_html=True)
                 cx_end_col1, cx_end_col2, cx_end_col3 = st.columns([1, 2, 1])
                 with cx_end_col2:
-                    if st.button("🔴  End Call & Get Score", key="cx_end_call", use_container_width=True):
+                    if st.button("End Call & Get Score", key="cx_end_call", use_container_width=True):
                         if session.get_turn_count() < 2:
                             st.warning("Have at least a couple exchanges before ending the call.")
                         else:
@@ -17262,12 +17330,14 @@ def main():
                 st.markdown("<div style='height: 24px'></div>", unsafe_allow_html=True)
                 cx_new_col1, cx_new_col2, cx_new_col3 = st.columns([1, 2, 1])
                 with cx_new_col2:
-                    if st.button("📞  Start New Call", key="cx_new_call", use_container_width=True):
+                    if st.button("Start New Session", key="cx_new_call", use_container_width=True):
                         st.session_state.cx_session = None
                         st.session_state.cx_call_active = False
                         st.session_state.cx_call_ended = False
                         st.session_state.cx_result = None
                         st.session_state.cx_start_time = None
+                        st.session_state.cx_ringing = False
+                        st.session_state.cx_opening_spoken = True
                         st.rerun()
 
     # Footer with stats
