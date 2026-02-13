@@ -13606,8 +13606,6 @@ def main():
         <div class="proof-navbar-nav">
             <a href="{build_nav_url('photo')}" target="_parent" class="proof-navbar-link {photo_active}">Photo</a>
             <a href="{build_nav_url('video')}" target="_parent" class="proof-navbar-link {video_active}">Video</a>
-            <a href="{build_nav_url('timeline_x')}" target="_parent" class="proof-navbar-link {'active' if current_page == 'Timeline X' else ''}" style="display: flex; align-items: center; gap: 6px;">Timeline X <span style="background: #8B5CF6; color: white; font-size: 9px; font-weight: 600; padding: 2px 6px; border-radius: 4px;">BETA</span></a>
-            <a href="{build_nav_url('director_x')}" target="_parent" class="proof-navbar-link {'active' if current_page == 'Director X' else ''}" style="display: flex; align-items: center; gap: 6px;">Director X <span style="background: #8B5CF6; color: white; font-size: 9px; font-weight: 600; padding: 2px 6px; border-radius: 4px;">BETA</span></a>
             <div class="proof-dropdown">
                 <span class="proof-navbar-link {sort_active}">Auto Sort ▾</span>
                 <div class="proof-dropdown-content">
@@ -13615,6 +13613,8 @@ def main():
                     <a href="{build_nav_url('video_sort')}" target="_parent" class="proof-dropdown-item">Video</a>
                 </div>
             </div>
+            <a href="{build_nav_url('timeline_x')}" target="_parent" class="proof-navbar-link {'active' if current_page == 'Timeline X' else ''}" style="display: flex; align-items: center; gap: 6px;">Timeline X <span style="background: #7C3AED; color: white; font-size: 9px; font-weight: 600; padding: 2px 6px; border-radius: 4px;">BETA</span></a>
+            <a href="{build_nav_url('director_x')}" target="_parent" class="proof-navbar-link {'active' if current_page == 'Director X' else ''}" style="display: flex; align-items: center; gap: 6px;">Director X <span style="background: #7C3AED; color: white; font-size: 9px; font-weight: 600; padding: 2px 6px; border-radius: 4px;">BETA</span></a>
         </div>
         <div class="proof-navbar-right">
             <div class="proof-user-dropdown">
