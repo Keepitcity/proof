@@ -2531,6 +2531,7 @@ def show_login_page():
                 localStorage.removeItem('proof_user_email');
                 localStorage.removeItem('proof_user_name');
                 localStorage.removeItem('proof_user_picture');
+                localStorage.removeItem('proof_current_page');
                 // Remove the clear_storage param and reload clean
                 window.parent.location.href = window.parent.location.pathname;
                 return;
@@ -2637,19 +2638,8 @@ def show_login_page():
                             picture_url=user_info_data['picture_url']
                         )
 
-                        # Save to localStorage for session persistence
-                        escaped_email = user_info_data['email'].replace("'", "\\'")
-                        escaped_name = user_info_data['name'].replace("'", "\\'")
-                        escaped_picture = user_info_data['picture_url'].replace("'", "\\'")
-                        st.markdown(f"""
-                        <script>
-                            localStorage.setItem('proof_user_email', '{escaped_email}');
-                            localStorage.setItem('proof_user_name', '{escaped_name}');
-                            localStorage.setItem('proof_user_picture', '{escaped_picture}');
-                        </script>
-                        """, unsafe_allow_html=True)
-
                         # Clear the code from URL and reload
+                        # (localStorage save happens on main app render via components.html)
                         st.query_params.clear()
                         st.rerun()
                     else:
@@ -13600,7 +13590,9 @@ def main():
     action_param = query_params.get("action")
     if action_param == "signout":
         clear_session()
+        # Keep clear_storage param so login page JS can clear localStorage
         st.query_params.clear()
+        st.query_params["clear_storage"] = "1"
         st.rerun()
 
     # Handle page navigation
@@ -13673,16 +13665,6 @@ def main():
     is_dark = st.session_state.dark_mode
     current_page = st.session_state.app_page
 
-    # Save current page to localStorage for session persistence on refresh
-    import streamlit.components.v1 as components
-    _page_url_key = {
-        "Home": "home", "Video Proof": "video", "Photo Proof": "photo",
-        "Timeline X": "timeline_x", "Director X": "director_x",
-        "Photo Sort": "photo_sort", "Video Sort": "video_sort",
-        "About": "about", "Admin": "admin", "Profile": "profile",
-    }.get(current_page, "photo")
-    components.html(f"<script>localStorage.setItem('proof_current_page','{_page_url_key}');</script>", height=0)
-
     # Active states
     video_active = "active" if current_page == "Video Proof" else ""
     photo_active = "active" if current_page == "Photo Proof" else ""
@@ -13753,6 +13735,24 @@ def main():
     user_email = user_info.get('email', '')
     user_name = user_info.get('name', '')
     user_picture = user_info.get('picture_url', '')
+
+    # Save auth + current page to localStorage via components.html (actually executes JS)
+    import streamlit.components.v1 as components
+    _page_url_key = {
+        "Home": "home", "Video Proof": "video", "Photo Proof": "photo",
+        "Timeline X": "timeline_x", "Director X": "director_x",
+        "Photo Sort": "photo_sort", "Video Sort": "video_sort",
+        "About": "about", "Admin": "admin", "Profile": "profile",
+    }.get(current_page, "photo")
+    _escaped_email = user_email.replace("'", "\\'")
+    _escaped_name = user_name.replace("'", "\\'")
+    _escaped_picture = user_picture.replace("'", "\\'")
+    components.html(f"""<script>
+        localStorage.setItem('proof_user_email', '{_escaped_email}');
+        localStorage.setItem('proof_user_name', '{_escaped_name}');
+        localStorage.setItem('proof_user_picture', '{_escaped_picture}');
+        localStorage.setItem('proof_current_page', '{_page_url_key}');
+    </script>""", height=0)
 
     def build_nav_url(page):
         """Build navigation URL with session restore params"""
