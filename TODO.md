@@ -22,6 +22,8 @@
 - [x] **Update homepage** — "Your Work Deserves Better" tagline, trimmed sections, "Ready to Stop Sucking?" dual CTA
 - [x] **Fix black-on-black CSS** — Legacy CSS dark-mode colors overriding light mode on tabs, radio buttons, inputs, and cards
 - [x] **Fix admin email** — `shawn.keepitcity@gmail.com` is admin, `@aerialcanvas.com` are team, everyone else waitlist
+- [x] **Fix auth bypass** — `check_authentication()` had hardcoded domain checks bypassing database; also removed admin email from waitlist table
+- [x] **Session persistence** — login + current page now survive browser refresh via localStorage
 
 ## In Progress / Pending
 
