@@ -13604,6 +13604,7 @@ def main():
             "photo": ("Photo Proof", "Photo"),
             "timeline_x": ("Timeline X", "Timeline X"),
             "director_x": ("Director X", "Director X"),
+            "consultation_x": ("ConsultationX", "ConsultationX"),
             "photo_sort": ("Photo Sort", "Auto Sort"),
             "video_sort": ("Video Sort", "Auto Sort"),
             "about": ("About", "About"),
@@ -13741,6 +13742,7 @@ def main():
     _page_url_key = {
         "Home": "home", "Video Proof": "video", "Photo Proof": "photo",
         "Timeline X": "timeline_x", "Director X": "director_x",
+        "ConsultationX": "consultation_x",
         "Photo Sort": "photo_sort", "Video Sort": "video_sort",
         "About": "about", "Admin": "admin", "Profile": "profile",
     }.get(current_page, "photo")
@@ -13795,6 +13797,7 @@ def main():
             </div>
             <a href="{build_nav_url('timeline_x')}" target="_parent" class="proof-navbar-link {'active' if current_page == 'Timeline X' else ''}" style="display: flex; align-items: center; gap: 6px;">Timeline X <span class="proof-beta-badge">BETA</span></a>
             <a href="{build_nav_url('director_x')}" target="_parent" class="proof-navbar-link {'active' if current_page == 'Director X' else ''}" style="display: flex; align-items: center; gap: 6px;">Director X <span class="proof-beta-badge">BETA</span></a>
+            <a href="{build_nav_url('consultation_x')}" target="_parent" class="proof-navbar-link {'active' if current_page == 'ConsultationX' else ''}" style="display: flex; align-items: center; gap: 6px;">ConsultationX <span class="proof-beta-badge">BETA</span></a>
         </div>
         <div class="proof-navbar-right">
             <div class="proof-user-dropdown">
@@ -16735,6 +16738,346 @@ def main():
                     os.unlink(dx_tmp_path)
                 except Exception:
                     pass
+
+    # =============================================
+    # CONSULTATION X PAGE
+    # =============================================
+    if app_mode == "ConsultationX":
+        # Import the engine
+        from consultation_x import (
+            ConsultationEngine, TeamRole, Difficulty, ScoreCategory,
+            generate_random_scenario, get_tier
+        )
+
+        # Header
+        st.markdown(f"""
+        <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 8px;">
+            <div style="width: 48px; height: 48px; background: linear-gradient(135deg, #9461F5, #7C3AED); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
+                </svg>
+            </div>
+            <div>
+                <h2 style="color: {theme['text']}; margin: 0; display: flex; align-items: center; gap: 8px;">ConsultationX <span class="proof-beta-badge">BETA</span></h2>
+                <p style="color: {theme['text_muted']}; margin: 0; font-size: 14px;">AI-powered consultation training for your team</p>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # Feature cards
+        cx_col1, cx_col2, cx_col3 = st.columns(3)
+        with cx_col1:
+            st.markdown(f"""
+            <div style="background: {theme['bg_secondary']}; border: 1px solid {theme['border']}; border-radius: 12px; padding: 20px; text-align: center;">
+                <div style="font-size: 28px; margin-bottom: 8px;">📞</div>
+                <div style="color: {theme['text']}; font-weight: 600; font-size: 14px;">Simulated Calls</div>
+                <div style="color: {theme['text_muted']}; font-size: 12px; margin-top: 4px;">AI plays realistic clients with unique personalities</div>
+            </div>
+            """, unsafe_allow_html=True)
+        with cx_col2:
+            st.markdown(f"""
+            <div style="background: {theme['bg_secondary']}; border: 1px solid {theme['border']}; border-radius: 12px; padding: 20px; text-align: center;">
+                <div style="font-size: 28px; margin-bottom: 8px;">🎯</div>
+                <div style="color: {theme['text']}; font-weight: 600; font-size: 14px;">Consultation Score</div>
+                <div style="color: {theme['text_muted']}; font-size: 12px; margin-top: 4px;">Scored 0-100 across 6 categories by Claude AI</div>
+            </div>
+            """, unsafe_allow_html=True)
+        with cx_col3:
+            st.markdown(f"""
+            <div style="background: {theme['bg_secondary']}; border: 1px solid {theme['border']}; border-radius: 12px; padding: 20px; text-align: center;">
+                <div style="font-size: 28px; margin-bottom: 8px;">📊</div>
+                <div style="color: {theme['text']}; font-weight: 600; font-size: 14px;">Detailed Feedback</div>
+                <div style="color: {theme['text_muted']}; font-size: 12px; margin-top: 4px;">Strengths, improvements, and key moments</div>
+            </div>
+            """, unsafe_allow_html=True)
+
+        st.markdown("---")
+
+        # Initialize session state for ConsultationX
+        if 'cx_session' not in st.session_state:
+            st.session_state.cx_session = None
+        if 'cx_engine' not in st.session_state:
+            st.session_state.cx_engine = None
+        if 'cx_call_active' not in st.session_state:
+            st.session_state.cx_call_active = False
+        if 'cx_call_ended' not in st.session_state:
+            st.session_state.cx_call_ended = False
+        if 'cx_result' not in st.session_state:
+            st.session_state.cx_result = None
+        if 'cx_start_time' not in st.session_state:
+            st.session_state.cx_start_time = None
+
+        # Check for API keys
+        cx_has_groq = False
+        cx_has_anthropic = False
+        try:
+            cx_groq_key = st.secrets["groq"]["api_key"]
+            cx_has_groq = bool(cx_groq_key)
+        except Exception:
+            pass
+        try:
+            cx_anthropic_key = st.secrets["anthropic"]["api_key"]
+            cx_has_anthropic = bool(cx_anthropic_key)
+        except Exception:
+            pass
+
+        if not cx_has_groq or not cx_has_anthropic:
+            st.warning("ConsultationX requires Groq and Anthropic API keys in your secrets configuration.")
+        else:
+            # Initialize engine
+            if st.session_state.cx_engine is None:
+                st.session_state.cx_engine = ConsultationEngine(cx_groq_key, cx_anthropic_key)
+
+            # ---- STATE: No active call ----
+            if not st.session_state.cx_call_active and not st.session_state.cx_call_ended:
+                st.markdown(f"""
+                <div style="text-align: center; padding: 40px 20px;">
+                    <div style="font-size: 18px; color: {theme['text']}; font-weight: 600; margin-bottom: 8px;">Ready to train?</div>
+                    <div style="color: {theme['text_muted']}; font-size: 14px; margin-bottom: 30px;">Select your role and difficulty, then start the call. A random client will ring in.</div>
+                </div>
+                """, unsafe_allow_html=True)
+
+                cx_setup_col1, cx_setup_col2 = st.columns(2)
+                with cx_setup_col1:
+                    cx_role = st.selectbox("Your Role", ["Project Manager", "Sales"], key="cx_role_select")
+                with cx_setup_col2:
+                    cx_difficulty = st.selectbox("Difficulty", ["Any", "Easy", "Medium", "Hard"], key="cx_diff_select")
+
+                st.markdown("<div style='height: 20px'></div>", unsafe_allow_html=True)
+
+                # Big start button
+                cx_start_col1, cx_start_col2, cx_start_col3 = st.columns([1, 2, 1])
+                with cx_start_col2:
+                    if st.button("📞  Start Call", key="cx_start_call", use_container_width=True):
+                        with st.spinner("Connecting call..."):
+                            role = TeamRole.PROJECT_MANAGER if cx_role == "Project Manager" else TeamRole.SALES
+                            diff = None
+                            if cx_difficulty != "Any":
+                                diff = Difficulty(cx_difficulty)
+
+                            session = st.session_state.cx_engine.start_session(
+                                user_email=user_info.get('email', ''),
+                                user_name=user_info.get('name', ''),
+                                team_role=role,
+                                difficulty=diff,
+                            )
+                            st.session_state.cx_session = session
+                            st.session_state.cx_call_active = True
+                            st.session_state.cx_start_time = time.time()
+                            st.rerun()
+
+            # ---- STATE: Call is active ----
+            elif st.session_state.cx_call_active and st.session_state.cx_session:
+                session = st.session_state.cx_session
+                scenario = session.scenario
+                persona = scenario.client_persona
+
+                # Call header
+                st.markdown(f"""
+                <div style="background: linear-gradient(135deg, #1a1a2e, #16213e); border-radius: 16px; padding: 24px; margin-bottom: 20px;">
+                    <div style="display: flex; align-items: center; justify-content: space-between;">
+                        <div style="display: flex; align-items: center; gap: 16px;">
+                            <div style="width: 52px; height: 52px; background: linear-gradient(135deg, #9461F5, #7C3AED); border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+                                <span style="color: white; font-size: 22px; font-weight: 700;">{persona.name[0]}</span>
+                            </div>
+                            <div>
+                                <div style="color: #FFFFFF; font-size: 18px; font-weight: 600;">{persona.name}</div>
+                                <div style="color: #a1a1aa; font-size: 13px;">{persona.company}</div>
+                            </div>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <div style="width: 10px; height: 10px; background: #22c55e; border-radius: 50%; animation: pulse 1.5s infinite;"></div>
+                            <span style="color: #22c55e; font-size: 13px; font-weight: 600;">LIVE</span>
+                        </div>
+                    </div>
+                    <div style="margin-top: 12px; display: flex; gap: 12px;">
+                        <span style="background: rgba(148, 97, 245, 0.2); color: #9461F5; padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 600;">{scenario.category.value}</span>
+                        <span style="background: rgba(148, 97, 245, 0.2); color: #9461F5; padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 600;">{scenario.difficulty.value}</span>
+                        <span style="background: rgba(148, 97, 245, 0.2); color: #9461F5; padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 600;">{persona.city}</span>
+                    </div>
+                </div>
+                <style>
+                @keyframes pulse {{
+                    0%, 100% {{ opacity: 1; }}
+                    50% {{ opacity: 0.4; }}
+                }}
+                </style>
+                """, unsafe_allow_html=True)
+
+                # Chat messages
+                for msg in session.messages:
+                    if msg.role == "client":
+                        st.markdown(f"""
+                        <div style="display: flex; gap: 10px; margin-bottom: 12px;">
+                            <div style="width: 32px; height: 32px; min-width: 32px; background: linear-gradient(135deg, #9461F5, #7C3AED); border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+                                <span style="color: white; font-size: 13px; font-weight: 700;">{persona.name[0]}</span>
+                            </div>
+                            <div style="background: {theme['bg_secondary']}; border: 1px solid {theme['border']}; border-radius: 12px; border-top-left-radius: 4px; padding: 12px 16px; max-width: 80%;">
+                                <div style="color: {theme['text']}; font-size: 14px; line-height: 1.5;">{msg.content}</div>
+                            </div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                    else:
+                        st.markdown(f"""
+                        <div style="display: flex; gap: 10px; margin-bottom: 12px; justify-content: flex-end;">
+                            <div style="background: linear-gradient(135deg, #9461F5, #7C3AED); border-radius: 12px; border-top-right-radius: 4px; padding: 12px 16px; max-width: 80%;">
+                                <div style="color: #FFFFFF; font-size: 14px; line-height: 1.5;">{msg.content}</div>
+                            </div>
+                        </div>
+                        """, unsafe_allow_html=True)
+
+                # Input area
+                cx_input_col1, cx_input_col2 = st.columns([5, 1])
+                with cx_input_col1:
+                    cx_user_input = st.text_input(
+                        "Your response",
+                        key=f"cx_input_{session.get_turn_count()}",
+                        placeholder="Type your response...",
+                        label_visibility="collapsed",
+                    )
+                with cx_input_col2:
+                    cx_send = st.button("Send", key="cx_send_btn", use_container_width=True)
+
+                if cx_send and cx_user_input and cx_user_input.strip():
+                    with st.spinner("Client is responding..."):
+                        try:
+                            client_reply = st.session_state.cx_engine.send_response(session, cx_user_input.strip())
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"Error: {str(e)}")
+
+                # End call button
+                st.markdown("<div style='height: 12px'></div>", unsafe_allow_html=True)
+                cx_end_col1, cx_end_col2, cx_end_col3 = st.columns([1, 2, 1])
+                with cx_end_col2:
+                    if st.button("🔴  End Call & Get Score", key="cx_end_call", use_container_width=True):
+                        if session.get_turn_count() < 2:
+                            st.warning("Have at least a couple exchanges before ending the call.")
+                        else:
+                            with st.spinner("Analyzing your consultation... Claude is scoring your performance..."):
+                                try:
+                                    elapsed = time.time() - (st.session_state.cx_start_time or time.time())
+                                    session.elapsed_seconds = elapsed
+                                    result = st.session_state.cx_engine.end_and_evaluate(session)
+                                    st.session_state.cx_result = result
+                                    st.session_state.cx_call_active = False
+                                    st.session_state.cx_call_ended = True
+                                    st.rerun()
+                                except Exception as e:
+                                    st.error(f"Evaluation failed: {str(e)}")
+
+                # Turn counter
+                turns_left = session.scenario.max_turns - session.get_turn_count()
+                st.markdown(f"""
+                <div style="text-align: center; color: {theme['text_muted']}; font-size: 12px; margin-top: 8px;">
+                    {session.get_turn_count()} exchanges | {turns_left} turns remaining
+                </div>
+                """, unsafe_allow_html=True)
+
+            # ---- STATE: Call ended, showing results ----
+            elif st.session_state.cx_call_ended and st.session_state.cx_result:
+                result = st.session_state.cx_result
+                session = st.session_state.cx_session
+                scenario = session.scenario
+
+                # Score tier colors
+                tier_colors = {
+                    "A+": "#22c55e", "A": "#22c55e", "B": "#eab308",
+                    "C": "#f97316", "D": "#ef4444",
+                }
+                tier_color = tier_colors.get(result.tier, "#9461F5")
+
+                # Big score card
+                st.markdown(f"""
+                <div style="background: linear-gradient(135deg, #1a1a2e, #16213e); border-radius: 16px; padding: 32px; text-align: center; margin-bottom: 24px;">
+                    <div style="font-size: 13px; color: #a1a1aa; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 8px;">Consultation Score</div>
+                    <div style="font-size: 72px; font-weight: 800; color: {tier_color}; line-height: 1;">{result.overall_score}</div>
+                    <div style="font-size: 24px; font-weight: 700; color: {tier_color}; margin-top: 4px;">{result.tier} — {result.tier_label}</div>
+                    <div style="margin-top: 16px; display: flex; justify-content: center; gap: 20px;">
+                        <div>
+                            <div style="color: #a1a1aa; font-size: 11px; text-transform: uppercase;">Client Satisfaction</div>
+                            <div style="color: #FFFFFF; font-size: 20px; font-weight: 700;">{result.client_satisfaction}%</div>
+                        </div>
+                        <div style="width: 1px; background: #333;"></div>
+                        <div>
+                            <div style="color: #a1a1aa; font-size: 11px; text-transform: uppercase;">Deal Outcome</div>
+                            <div style="color: #FFFFFF; font-size: 20px; font-weight: 700;">{result.deal_outcome.title()}</div>
+                        </div>
+                        <div style="width: 1px; background: #333;"></div>
+                        <div>
+                            <div style="color: #a1a1aa; font-size: 11px; text-transform: uppercase;">Scenario</div>
+                            <div style="color: #FFFFFF; font-size: 20px; font-weight: 700;">{scenario.difficulty.value}</div>
+                        </div>
+                    </div>
+                    <div style="margin-top: 16px; color: #a1a1aa; font-size: 13px;">{scenario.client_persona.name} from {scenario.client_persona.company} | {scenario.title}</div>
+                </div>
+                """, unsafe_allow_html=True)
+
+                # Category breakdown
+                st.markdown(f"<h3 style='color: {theme[\"text\"]}; margin-bottom: 16px;'>Category Breakdown</h3>", unsafe_allow_html=True)
+                for cs in result.category_scores:
+                    bar_color = "#22c55e" if cs.score >= 80 else "#eab308" if cs.score >= 60 else "#ef4444"
+                    st.markdown(f"""
+                    <div style="background: {theme['bg_secondary']}; border: 1px solid {theme['border']}; border-radius: 10px; padding: 16px; margin-bottom: 10px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <span style="color: {theme['text']}; font-weight: 600; font-size: 14px;">{cs.category.value}</span>
+                            <span style="color: {bar_color}; font-weight: 700; font-size: 18px;">{cs.score}</span>
+                        </div>
+                        <div style="height: 6px; background: {theme['border']}; border-radius: 3px; overflow: hidden;">
+                            <div style="height: 100%; width: {cs.score}%; background: {bar_color}; border-radius: 3px;"></div>
+                        </div>
+                        <div style="color: {theme['text_muted']}; font-size: 12px; margin-top: 8px; line-height: 1.5;">{cs.feedback}</div>
+                    </div>
+                    """, unsafe_allow_html=True)
+
+                # Strengths & Improvements
+                cx_res_col1, cx_res_col2 = st.columns(2)
+                with cx_res_col1:
+                    st.markdown(f"<h3 style='color: {theme[\"text\"]}; margin-bottom: 12px;'>Strengths</h3>", unsafe_allow_html=True)
+                    for s in result.strengths:
+                        st.markdown(f"""
+                        <div style="background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.3); border-radius: 8px; padding: 10px 14px; margin-bottom: 8px;">
+                            <span style="color: #22c55e; font-size: 13px;">✓ {s}</span>
+                        </div>
+                        """, unsafe_allow_html=True)
+                with cx_res_col2:
+                    st.markdown(f"<h3 style='color: {theme[\"text\"]}; margin-bottom: 12px;'>Areas to Improve</h3>", unsafe_allow_html=True)
+                    for imp in result.improvements:
+                        st.markdown(f"""
+                        <div style="background: rgba(249, 115, 22, 0.1); border: 1px solid rgba(249, 115, 22, 0.3); border-radius: 8px; padding: 10px 14px; margin-bottom: 8px;">
+                            <span style="color: #f97316; font-size: 13px;">→ {imp}</span>
+                        </div>
+                        """, unsafe_allow_html=True)
+
+                # Key moments
+                if result.key_moments:
+                    st.markdown(f"<h3 style='color: {theme[\"text\"]}; margin-top: 16px; margin-bottom: 12px;'>Key Moments</h3>", unsafe_allow_html=True)
+                    for km in result.key_moments:
+                        st.markdown(f"""
+                        <div style="background: {theme['bg_secondary']}; border: 1px solid {theme['border']}; border-left: 3px solid #9461F5; border-radius: 8px; padding: 12px 16px; margin-bottom: 8px;">
+                            <span style="color: {theme['text']}; font-size: 13px;">{km}</span>
+                        </div>
+                        """, unsafe_allow_html=True)
+
+                # Summary
+                st.markdown(f"""
+                <div style="background: {theme['bg_secondary']}; border: 1px solid {theme['border']}; border-radius: 12px; padding: 20px; margin-top: 16px;">
+                    <div style="color: {theme['text']}; font-weight: 600; font-size: 15px; margin-bottom: 8px;">Summary</div>
+                    <div style="color: {theme['text_muted']}; font-size: 14px; line-height: 1.6;">{result.summary}</div>
+                </div>
+                """, unsafe_allow_html=True)
+
+                # New call button
+                st.markdown("<div style='height: 24px'></div>", unsafe_allow_html=True)
+                cx_new_col1, cx_new_col2, cx_new_col3 = st.columns([1, 2, 1])
+                with cx_new_col2:
+                    if st.button("📞  Start New Call", key="cx_new_call", use_container_width=True):
+                        st.session_state.cx_session = None
+                        st.session_state.cx_call_active = False
+                        st.session_state.cx_call_ended = False
+                        st.session_state.cx_result = None
+                        st.session_state.cx_start_time = None
+                        st.rerun()
 
     # Footer with stats
     render_footer()
