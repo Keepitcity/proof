@@ -2541,14 +2541,16 @@ def show_login_page():
                 const email = localStorage.getItem('proof_user_email');
                 const name = localStorage.getItem('proof_user_name');
                 const picture = localStorage.getItem('proof_user_picture');
+                const savedPage = localStorage.getItem('proof_current_page');
 
                 if (email) {
-                    // Build restore URL with user info
+                    // Build restore URL with user info + saved page
                     const baseUrl = window.parent.location.origin + window.parent.location.pathname;
                     const params = new URLSearchParams();
                     params.set('restore_email', email);
                     if (name) params.set('restore_name', name);
                     if (picture) params.set('restore_picture', picture);
+                    if (savedPage) params.set('page', savedPage);
 
                     // Redirect to restore session
                     window.parent.location.href = baseUrl + '?' + params.toString();
@@ -13670,6 +13672,16 @@ def main():
     # =============================================
     is_dark = st.session_state.dark_mode
     current_page = st.session_state.app_page
+
+    # Save current page to localStorage for session persistence on refresh
+    import streamlit.components.v1 as components
+    _page_url_key = {
+        "Home": "home", "Video Proof": "video", "Photo Proof": "photo",
+        "Timeline X": "timeline_x", "Director X": "director_x",
+        "Photo Sort": "photo_sort", "Video Sort": "video_sort",
+        "About": "about", "Admin": "admin", "Profile": "profile",
+    }.get(current_page, "photo")
+    components.html(f"<script>localStorage.setItem('proof_current_page','{_page_url_key}');</script>", height=0)
 
     # Active states
     video_active = "active" if current_page == "Video Proof" else ""
