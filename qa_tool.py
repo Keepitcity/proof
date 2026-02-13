@@ -16749,18 +16749,11 @@ def main():
             generate_random_scenario, get_tier
         )
 
-        # Header
+        # Header — centered, clean
         st.markdown(f"""
-        <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 8px;">
-            <div style="width: 48px; height: 48px; background: linear-gradient(135deg, #9461F5, #7C3AED); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
-                </svg>
-            </div>
-            <div>
-                <h2 style="color: {theme['text']}; margin: 0; display: flex; align-items: center; gap: 8px;">ConsultationX <span class="proof-beta-badge">BETA</span></h2>
-                <p style="color: {theme['text_muted']}; margin: 0; font-size: 14px;">AI-powered consultation training for your team</p>
-            </div>
+        <div style="text-align: center; margin-bottom: 8px;">
+            <h2 style="color: {theme['text']}; margin: 0; display: inline-flex; align-items: center; gap: 8px;">ConsultationX <span class="proof-beta-badge">BETA</span></h2>
+            <p style="color: {theme['text_muted']}; margin: 4px 0 0 0; font-size: 14px;">AI-powered consultation training for your team</p>
         </div>
         """, unsafe_allow_html=True)
 
@@ -16770,24 +16763,24 @@ def main():
             st.markdown(f"""
             <div style="background: {theme['bg_secondary']}; border: 1px solid {theme['border']}; border-radius: 12px; padding: 20px; text-align: center;">
                 <div style="font-size: 28px; margin-bottom: 8px;">📞</div>
-                <div style="color: {theme['text']}; font-weight: 600; font-size: 14px;">Simulated Calls</div>
-                <div style="color: {theme['text_muted']}; font-size: 12px; margin-top: 4px;">AI plays realistic clients with unique personalities</div>
+                <div style="color: {theme['text']}; font-weight: 600; font-size: 14px;">Phone Call</div>
+                <div style="color: {theme['text_muted']}; font-size: 12px; margin-top: 4px;">Talk live with an AI client using your mic</div>
             </div>
             """, unsafe_allow_html=True)
         with cx_col2:
             st.markdown(f"""
             <div style="background: {theme['bg_secondary']}; border: 1px solid {theme['border']}; border-radius: 12px; padding: 20px; text-align: center;">
-                <div style="font-size: 28px; margin-bottom: 8px;">🎯</div>
-                <div style="color: {theme['text']}; font-weight: 600; font-size: 14px;">Consultation Score</div>
-                <div style="color: {theme['text_muted']}; font-size: 12px; margin-top: 4px;">Scored 0-100 across 6 categories by Claude AI</div>
+                <div style="font-size: 28px; margin-bottom: 8px;">💬</div>
+                <div style="color: {theme['text']}; font-weight: 600; font-size: 14px;">Text Chat</div>
+                <div style="color: {theme['text_muted']}; font-size: 12px; margin-top: 4px;">Practice consultations via text messaging</div>
             </div>
             """, unsafe_allow_html=True)
         with cx_col3:
             st.markdown(f"""
             <div style="background: {theme['bg_secondary']}; border: 1px solid {theme['border']}; border-radius: 12px; padding: 20px; text-align: center;">
-                <div style="font-size: 28px; margin-bottom: 8px;">📊</div>
-                <div style="color: {theme['text']}; font-weight: 600; font-size: 14px;">Detailed Feedback</div>
-                <div style="color: {theme['text_muted']}; font-size: 12px; margin-top: 4px;">Strengths, improvements, and key moments</div>
+                <div style="font-size: 28px; margin-bottom: 8px;">📧</div>
+                <div style="color: {theme['text']}; font-weight: 600; font-size: 14px;">Email</div>
+                <div style="color: {theme['text_muted']}; font-size: 12px; margin-top: 4px;">Draft and respond to client emails</div>
             </div>
             """, unsafe_allow_html=True)
 
@@ -16806,6 +16799,8 @@ def main():
             st.session_state.cx_result = None
         if 'cx_start_time' not in st.session_state:
             st.session_state.cx_start_time = None
+        if 'cx_mode' not in st.session_state:
+            st.session_state.cx_mode = "Text Chat"
 
         # Check for API keys
         cx_has_groq = False
@@ -16833,9 +16828,21 @@ def main():
                 st.markdown(f"""
                 <div style="text-align: center; padding: 40px 20px;">
                     <div style="font-size: 18px; color: {theme['text']}; font-weight: 600; margin-bottom: 8px;">Ready to train?</div>
-                    <div style="color: {theme['text_muted']}; font-size: 14px; margin-bottom: 30px;">Select your role and difficulty, then start the call. A random client will ring in.</div>
+                    <div style="color: {theme['text_muted']}; font-size: 14px; margin-bottom: 30px;">Choose your mode, role, and difficulty — then start the session.</div>
                 </div>
                 """, unsafe_allow_html=True)
+
+                # Mode selector
+                cx_mode = st.radio(
+                    "Training Mode",
+                    ["📞 Phone Call", "💬 Text Chat", "📧 Email"],
+                    horizontal=True,
+                    key="cx_mode_radio",
+                    label_visibility="collapsed",
+                )
+                st.session_state.cx_mode = cx_mode
+
+                st.markdown("<div style='height: 12px'></div>", unsafe_allow_html=True)
 
                 cx_setup_col1, cx_setup_col2 = st.columns(2)
                 with cx_setup_col1:
@@ -16845,11 +16852,19 @@ def main():
 
                 st.markdown("<div style='height: 20px'></div>", unsafe_allow_html=True)
 
+                # Mode-specific labels
+                mode_labels = {
+                    "📞 Phone Call": ("📞  Start Call", "Connecting call..."),
+                    "💬 Text Chat": ("💬  Start Chat", "Starting chat..."),
+                    "📧 Email": ("📧  Start Email Thread", "Generating email..."),
+                }
+                btn_label, spinner_label = mode_labels.get(cx_mode, ("Start", "Starting..."))
+
                 # Big start button
                 cx_start_col1, cx_start_col2, cx_start_col3 = st.columns([1, 2, 1])
                 with cx_start_col2:
-                    if st.button("📞  Start Call", key="cx_start_call", use_container_width=True):
-                        with st.spinner("Connecting call..."):
+                    if st.button(btn_label, key="cx_start_call", use_container_width=True):
+                        with st.spinner(spinner_label):
                             role = TeamRole.PROJECT_MANAGER if cx_role == "Project Manager" else TeamRole.SALES
                             diff = None
                             if cx_difficulty != "Any":
@@ -16904,44 +16919,158 @@ def main():
                 </style>
                 """, unsafe_allow_html=True)
 
-                # Chat messages
+                # Messages — styled by mode
+                cx_current_mode = st.session_state.get('cx_mode', '💬 Text Chat')
+                cx_is_email = "Email" in cx_current_mode
+
                 for msg in session.messages:
-                    if msg.role == "client":
-                        st.markdown(f"""
-                        <div style="display: flex; gap: 10px; margin-bottom: 12px;">
-                            <div style="width: 32px; height: 32px; min-width: 32px; background: linear-gradient(135deg, #9461F5, #7C3AED); border-radius: 50%; display: flex; align-items: center; justify-content: center;">
-                                <span style="color: white; font-size: 13px; font-weight: 700;">{persona.name[0]}</span>
+                    if cx_is_email:
+                        # Email style
+                        if msg.role == "client":
+                            st.markdown(f"""
+                            <div style="background: {theme['bg_secondary']}; border: 1px solid {theme['border']}; border-radius: 8px; padding: 16px; margin-bottom: 12px;">
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 8px; border-bottom: 1px solid {theme['border']}; padding-bottom: 8px;">
+                                    <div>
+                                        <span style="color: {theme['text']}; font-weight: 600; font-size: 13px;">From: {persona.name}</span>
+                                        <span style="color: {theme['text_muted']}; font-size: 12px;"> &lt;{persona.name.lower().replace(' ', '.')}@{persona.company.lower().replace(' ', '').replace("'", '')}.com&gt;</span>
+                                    </div>
+                                </div>
+                                <div style="color: {theme['text']}; font-size: 14px; line-height: 1.6; white-space: pre-wrap;">{msg.content}</div>
                             </div>
-                            <div style="background: {theme['bg_secondary']}; border: 1px solid {theme['border']}; border-radius: 12px; border-top-left-radius: 4px; padding: 12px 16px; max-width: 80%;">
-                                <div style="color: {theme['text']}; font-size: 14px; line-height: 1.5;">{msg.content}</div>
+                            """, unsafe_allow_html=True)
+                        else:
+                            st.markdown(f"""
+                            <div style="background: rgba(148, 97, 245, 0.05); border: 1px solid rgba(148, 97, 245, 0.2); border-radius: 8px; padding: 16px; margin-bottom: 12px;">
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 8px; border-bottom: 1px solid {theme['border']}; padding-bottom: 8px;">
+                                    <span style="color: #9461F5; font-weight: 600; font-size: 13px;">From: You (Sent)</span>
+                                </div>
+                                <div style="color: {theme['text']}; font-size: 14px; line-height: 1.6; white-space: pre-wrap;">{msg.content}</div>
                             </div>
-                        </div>
-                        """, unsafe_allow_html=True)
+                            """, unsafe_allow_html=True)
                     else:
-                        st.markdown(f"""
-                        <div style="display: flex; gap: 10px; margin-bottom: 12px; justify-content: flex-end;">
-                            <div style="background: linear-gradient(135deg, #9461F5, #7C3AED); border-radius: 12px; border-top-right-radius: 4px; padding: 12px 16px; max-width: 80%;">
-                                <div style="color: #FFFFFF; font-size: 14px; line-height: 1.5;">{msg.content}</div>
+                        # Chat bubble style (Text Chat & Phone Call)
+                        if msg.role == "client":
+                            st.markdown(f"""
+                            <div style="display: flex; gap: 10px; margin-bottom: 12px;">
+                                <div style="width: 32px; height: 32px; min-width: 32px; background: linear-gradient(135deg, #9461F5, #7C3AED); border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+                                    <span style="color: white; font-size: 13px; font-weight: 700;">{persona.name[0]}</span>
+                                </div>
+                                <div style="background: {theme['bg_secondary']}; border: 1px solid {theme['border']}; border-radius: 12px; border-top-left-radius: 4px; padding: 12px 16px; max-width: 80%;">
+                                    <div style="color: {theme['text']}; font-size: 14px; line-height: 1.5;">{msg.content}</div>
+                                </div>
                             </div>
-                        </div>
-                        """, unsafe_allow_html=True)
+                            """, unsafe_allow_html=True)
+                        else:
+                            st.markdown(f"""
+                            <div style="display: flex; gap: 10px; margin-bottom: 12px; justify-content: flex-end;">
+                                <div style="background: linear-gradient(135deg, #9461F5, #7C3AED); border-radius: 12px; border-top-right-radius: 4px; padding: 12px 16px; max-width: 80%;">
+                                    <div style="color: #FFFFFF; font-size: 14px; line-height: 1.5;">{msg.content}</div>
+                                </div>
+                            </div>
+                            """, unsafe_allow_html=True)
 
-                # Input area
-                cx_input_col1, cx_input_col2 = st.columns([5, 1])
-                with cx_input_col1:
-                    cx_user_input = st.text_input(
-                        "Your response",
-                        key=f"cx_input_{session.get_turn_count()}",
-                        placeholder="Type your response...",
-                        label_visibility="collapsed",
+                # Input area — varies by mode
+                cx_current_mode = st.session_state.get('cx_mode', '💬 Text Chat')
+                cx_user_input = None
+                cx_send = False
+
+                if "Phone Call" in cx_current_mode:
+                    # Phone Call mode — mic input + text fallback
+                    st.markdown(f"""
+                    <div style="text-align: center; color: {theme['text_muted']}; font-size: 12px; margin-bottom: 8px;">
+                        Record your response using the mic below, or type it out
+                    </div>
+                    """, unsafe_allow_html=True)
+
+                    cx_audio = st.audio_input("Record your response", key=f"cx_mic_{session.get_turn_count()}")
+
+                    if cx_audio is not None:
+                        # Transcribe with Groq Whisper
+                        with st.spinner("Transcribing..."):
+                            try:
+                                import requests as cx_requests
+                                cx_transcribe_resp = cx_requests.post(
+                                    "https://api.groq.com/openai/v1/audio/transcriptions",
+                                    headers={"Authorization": f"Bearer {cx_groq_key}"},
+                                    files={"file": ("audio.wav", cx_audio.getvalue(), "audio/wav")},
+                                    data={"model": "whisper-large-v3", "language": "en"},
+                                    timeout=15,
+                                )
+                                if cx_transcribe_resp.status_code == 200:
+                                    cx_user_input = cx_transcribe_resp.json().get("text", "").strip()
+                                    if cx_user_input:
+                                        st.markdown(f"""
+                                        <div style="background: rgba(148, 97, 245, 0.1); border: 1px solid rgba(148, 97, 245, 0.3); border-radius: 8px; padding: 10px 14px; margin-bottom: 8px;">
+                                            <span style="color: {theme['text_muted']}; font-size: 11px;">You said:</span><br>
+                                            <span style="color: {theme['text']}; font-size: 14px;">{cx_user_input}</span>
+                                        </div>
+                                        """, unsafe_allow_html=True)
+                                        cx_send = True
+                                else:
+                                    st.error(f"Transcription failed: {cx_transcribe_resp.status_code}")
+                            except Exception as e:
+                                st.error(f"Mic error: {str(e)}")
+
+                    # Text fallback for phone mode
+                    st.markdown(f"<div style='color: {theme['text_muted']}; font-size: 11px; text-align: center; margin: 8px 0 4px 0;'>Or type your response:</div>", unsafe_allow_html=True)
+                    cx_phone_col1, cx_phone_col2 = st.columns([5, 1])
+                    with cx_phone_col1:
+                        cx_typed = st.text_input("Type response", key=f"cx_phone_text_{session.get_turn_count()}", placeholder="Type here...", label_visibility="collapsed")
+                    with cx_phone_col2:
+                        if st.button("Send", key="cx_phone_send", use_container_width=True):
+                            if cx_typed and cx_typed.strip():
+                                cx_user_input = cx_typed.strip()
+                                cx_send = True
+
+                elif "Email" in cx_current_mode:
+                    # Email mode — larger text area
+                    cx_email_input = st.text_area(
+                        "Compose your email reply",
+                        key=f"cx_email_{session.get_turn_count()}",
+                        placeholder="Type your email response...",
+                        height=120,
                     )
-                with cx_input_col2:
-                    cx_send = st.button("Send", key="cx_send_btn", use_container_width=True)
+                    cx_email_col1, cx_email_col2, cx_email_col3 = st.columns([1, 1, 1])
+                    with cx_email_col2:
+                        if st.button("📧  Send Reply", key="cx_email_send", use_container_width=True):
+                            if cx_email_input and cx_email_input.strip():
+                                cx_user_input = cx_email_input.strip()
+                                cx_send = True
 
-                if cx_send and cx_user_input and cx_user_input.strip():
+                else:
+                    # Text Chat mode — standard input
+                    cx_input_col1, cx_input_col2 = st.columns([5, 1])
+                    with cx_input_col1:
+                        cx_typed = st.text_input(
+                            "Your response",
+                            key=f"cx_input_{session.get_turn_count()}",
+                            placeholder="Type your response...",
+                            label_visibility="collapsed",
+                        )
+                    with cx_input_col2:
+                        if st.button("Send", key="cx_send_btn", use_container_width=True):
+                            if cx_typed and cx_typed.strip():
+                                cx_user_input = cx_typed.strip()
+                                cx_send = True
+
+                if cx_send and cx_user_input:
                     with st.spinner("Client is responding..."):
                         try:
-                            client_reply = st.session_state.cx_engine.send_response(session, cx_user_input.strip())
+                            client_reply = st.session_state.cx_engine.send_response(session, cx_user_input)
+
+                            # In phone mode, use browser TTS to speak the client's response
+                            if "Phone Call" in cx_current_mode and client_reply:
+                                import streamlit.components.v1 as cx_components
+                                safe_reply = client_reply.replace("'", "\\'").replace('"', '\\"').replace('\n', ' ')
+                                cx_components.html(f"""
+                                <script>
+                                    var utterance = new SpeechSynthesisUtterance("{safe_reply}");
+                                    utterance.rate = 1.0;
+                                    utterance.pitch = 1.0;
+                                    window.speechSynthesis.speak(utterance);
+                                </script>
+                                """, height=0)
+
                             st.rerun()
                         except Exception as e:
                             st.error(f"Error: {str(e)}")
