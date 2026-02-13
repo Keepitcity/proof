@@ -10074,7 +10074,7 @@ def display_auto_sort(sort_type="Video"):
         with ps_tab_local:
             st.markdown(f"""
             <div style="color: {theme['text_secondary']}; font-size: 13px; margin-bottom: 12px;">
-                Point to a local folder of photos on your Mac. Files will be sorted, renamed, and saved to a <code>_Sorted</code> folder.
+                Paste a folder path or drag from Finder into the field below. Photos will be sorted, renamed, and saved to a <code>_Sorted</code> folder.<br><span style="font-size: 11px; color: {theme['text_muted']};">Tip: Right-click a folder in Finder, hold Option, click "Copy as Pathname"</span>
             </div>
             """, unsafe_allow_html=True)
 
@@ -10533,7 +10533,7 @@ def display_auto_sort(sort_type="Video"):
             if vs_input_mode == "Local Path":
                 st.markdown(f"""
                 <div style="color: {theme['text_secondary']}; font-size: 13px; margin-bottom: 12px;">
-                    Point to a local folder of raw video clips on your Mac. Clips will be analyzed, sorted by room type, renamed, and saved to a <code>_Sorted</code> folder with XML timelines.
+                    Paste a folder path or drag from Finder into the field below. Clips will be sorted by room type, renamed, and saved to a <code>_Sorted</code> folder with XML timelines.<br><span style="font-size: 11px; color: {theme['text_muted']};">Tip: Right-click a folder in Finder, hold Option, click "Copy as Pathname"</span>
                 </div>
                 """, unsafe_allow_html=True)
 
@@ -15455,7 +15455,7 @@ def main():
         with video_tab3:
             st.markdown(f"""
             <div style="color: {theme['text_secondary']}; font-size: 13px; margin-bottom: 12px;">
-                Paste the full path to a video file on your Mac. No upload needed &mdash; analyzes directly from disk.
+                Paste a file path or drag from Finder into the field below. No upload needed.<br><span style="font-size: 11px; color: {theme['text_muted']};">Tip: Right-click a file in Finder, hold Option, click "Copy as Pathname"</span>
             </div>
             """, unsafe_allow_html=True)
 
@@ -15879,7 +15879,7 @@ def main():
         with photo_tab3:
             st.markdown(f"""
             <div style="color: {theme['text_secondary']}; font-size: 13px; margin-bottom: 12px;">
-                Paste the path to a photo or folder on your Mac. Folders will batch process all images inside.
+                Paste a file or folder path, or drag from Finder into the field below. Folders will batch process all images.<br><span style="font-size: 11px; color: {theme['text_muted']};">Tip: Right-click in Finder, hold Option, click "Copy as Pathname"</span>
             </div>
             """, unsafe_allow_html=True)
 
@@ -16188,7 +16188,7 @@ def main():
             with tlx_tab3:
                 st.markdown(f"""
                 <div style="color: {theme['text_secondary']}; font-size: 13px; margin-bottom: 12px;">
-                    Point to a local folder of video clips on your Mac. No upload needed &mdash; reads directly from disk.
+                    Paste a folder path or drag from Finder into the field below. No upload needed.<br><span style="font-size: 11px; color: {theme['text_muted']};">Tip: Right-click a folder in Finder, hold Option, click "Copy as Pathname"</span>
                 </div>
                 """, unsafe_allow_html=True)
 
@@ -16396,7 +16396,7 @@ def main():
         with dx_tab_local:
             st.markdown(f"""
             <div style="color: {theme['text_secondary']}; font-size: 13px; margin-bottom: 12px;">
-                Paste the full path to a video file on your Mac. No upload needed &mdash; analyzes directly from disk.
+                Paste a file path or drag from Finder into the field below. No upload needed.<br><span style="font-size: 11px; color: {theme['text_muted']};">Tip: Right-click a file in Finder, hold Option, click "Copy as Pathname"</span>
             </div>
             """, unsafe_allow_html=True)
 
