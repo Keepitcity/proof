@@ -968,6 +968,182 @@ def get_dropbox_download_link(shared_link: str, file_path: str, dbx_client=None)
         return None
 
 # ============================================================================
+# VERSION TRACKING, CHANGELOG & DEVELOPMENT STATS
+# ============================================================================
+
+APP_VERSION = "0.5.2"
+APP_VERSION_NAME = "Beta"
+APP_CREATED_DATE = "2026-02-09"  # When Proof was first created
+
+# Actual hours spent working with Claude Code on this project
+AI_SESSION_LOG = [
+    ("2026-02-09", 4.0, "Initial setup, Video Proof core, Google OAuth, user database"),
+    ("2026-02-10", 3.5, "Director X AI video analysis, frame sampling, thoroughness selector"),
+    ("2026-02-11", 5.0, "Photo Sort, CLIP room classification, AI Boost toggle, Whisper transcription"),
+    ("2026-02-12", 15.0, "Co-training, admin dashboard, UI polish, sun flare detection, photo scoring, clickable details, timezone greetings, Timeline X with music sync, real video analysis, LOCAL FOLDER processor, Local Path tabs everywhere"),
+    ("2026-02-13", 3.0, "Branding migration, ownership transfer, navbar rebuild, changelog recovery"),
+]
+
+CLAUDE_CODE_MONTHLY_COST = 100  # $100/month for Claude Code Pro
+
+# Changelog - newest entries at the TOP
+# Format: (version, date, title, features_list, dev_hours_estimate)
+CHANGELOG = [
+    ("0.5.2", "2026-02-12", "Native File Browser & Local Export", [
+        "BROWSE BUTTON: Click to open native macOS Finder dialog",
+        "Auto-detects local files and pre-fills save locations",
+        "Video Sort: Browse → Analyze → Save Organized Project",
+        "Photo Sort: Browse → Analyze → Save Sorted Photos Locally",
+        "Creates _Sorted folder with renamed files (01_Kitchen.mp4, etc.)",
+        "XML timelines auto-link to local file paths",
+        "No more typing paths — just click and select!",
+    ], 12),
+    ("0.5.1", "2026-02-12", "Local Path Support Everywhere", [
+        "LOCAL PATH: Added to all features via tabs",
+        "Video Proof: Dropbox | Upload | Local Path tabs",
+        "Photo Proof: Dropbox | Upload | Local Path tabs (folders batch process)",
+        "Photo Sort: Dropbox | Local Path tabs",
+        "Video Sort: Dropbox | Upload | Local Path options",
+        "Timeline X: Dropbox | Upload | Local Path tabs",
+        "Director X: Upload | Dropbox | Local Path tabs",
+        "No upload needed for local files - instant processing",
+        "Timeline X UI cleanup - luxury SaaS styling",
+        "Removed separate Local Folder page (integrated everywhere)",
+    ], 16),
+    ("0.5.0", "2026-02-12", "Local Folder Processing", [
+        "LOCAL FOLDER: Process files directly from your Mac",
+        "Folder scanner with auto-detection of content types",
+        "Recognizes RAW Videos, RAW Photos, Drone, Twilight folders",
+        "Video sorter with scene/room classification",
+        "Smart file renaming (01_Drone_Establishing.MOV)",
+        "Export sorted files to new folder",
+        "Generate XML timelines for DaVinci/FCP/Premiere",
+        "Works completely offline - no upload needed",
+    ], 60),
+    ("0.4.2", "2026-02-12", "Timeline X - Real Video Analysis", [
+        "FFprobe integration for actual video metadata (duration, resolution, fps, codec)",
+        "BPM Analyzer with librosa backend for automatic beat detection",
+        "Real clip analysis pipeline with progress indicators",
+        "Analyzed clips display showing actual file metadata",
+        "Real XML generation from assembled timeline structure",
+        "Automated Editing Engine Framework saved as knowledge base",
+        "Timeline X bumped to v0.3.0 with full analyzer integration",
+    ], 40),
+    ("0.4.1", "2026-02-12", "Timeline X - Music-Driven Editing", [
+        "Timeline X: AI-powered automated video editing",
+        "Music BPM detection for beat-synced cuts",
+        "Scene classification for intelligent ordering",
+        "Visual timeline builder with drag-and-drop",
+        "Export to DaVinci Resolve, FCP, Premiere Pro XML",
+        "Style presets: Cinematic, Fast-Paced, Documentary, Social Media",
+    ], 80),
+    ("0.4.0", "2026-02-12", "Sun Flare Detection & Photo Scoring", [
+        "AI sun flare/lens flare detection in photos",
+        "Photo quality scoring (composition, exposure, sharpness)",
+        "Clickable issue details with inline photo previews",
+        "Time-of-day greeting in navbar (Good morning/afternoon/evening)",
+        "Timezone-aware based on user's browser",
+    ], 24),
+    ("0.3.1", "2026-02-12", "UI Polish & Purple Checkboxes", [
+        "Replaced emoji rocket with custom SVG rocket icon",
+        "Purple-themed checkboxes (outline when unchecked, purple fill when checked)",
+        "Consistent AI Boost styling across Photo Sort and Video Sort",
+        "Added 'trains local AI' indicator to cost badges",
+        "Admin console: Project history with dev time comparison",
+        "Dynamic version tracking in footer",
+    ], 16),
+    ("0.3.0", "2026-02-12", "AI Co-Training & Granular Exteriors", [
+        "Claude Vision co-training system - builds local training dataset",
+        "Cached classifications to avoid redundant API calls (free lookups)",
+        "Granular exterior categories: hero shot, front detail, left/right angles",
+        "Updated photo delivery order with 35+ room types",
+        "Admin console: Project history & dev time tracking",
+    ], 80),
+    ("0.2.5", "2026-02-11", "AI Boost for Photo & Video Sort", [
+        "Claude Vision integration for 95%+ room classification accuracy",
+        "AI Boost toggle for Photo Sort (~$0.004/photo)",
+        "AI Boost toggle for Video Sort (~$0.004/clip)",
+        "Smart cost estimation before processing",
+        "Speech transcription with OpenAI Whisper",
+    ], 120),
+    ("0.2.0", "2026-02-10", "Director X AI Video Analysis", [
+        "Claude Vision-powered video frame analysis",
+        "Thoroughness selector (Quick/Standard/Deep)",
+        "Smart frame sampling with scene detection",
+        "Cross-reference narration with visuals",
+        "Detailed issue detection with timestamps",
+    ], 160),
+    ("0.1.5", "2026-02-09", "Photo Sort & Auto-Organization", [
+        "CLIP-based room classification (free, local)",
+        "Exterior angle detection (hero/left/right)",
+        "Automatic delivery order sorting",
+        "Dropbox integration for direct organization",
+        "Batch rename with descriptive filenames",
+    ], 100),
+    ("0.1.0", "2026-02-09", "Initial Release - Video Proof", [
+        "Automated video QA analysis",
+        "Log footage detection",
+        "Black frame detection",
+        "Audio level analysis",
+        "Resolution & codec checks",
+        "Google OAuth team authentication",
+        "User tracking database",
+        "Waitlist for non-team users",
+    ], 200),
+]
+
+def get_version_string():
+    """Get formatted version string for footer"""
+    return f"{APP_VERSION_NAME} v{APP_VERSION}"
+
+def get_total_traditional_dev_hours():
+    """Calculate total estimated hours for traditional development"""
+    return sum(entry[4] for entry in CHANGELOG)
+
+def get_actual_ai_hours():
+    """Get actual hours spent working with Claude Code"""
+    return sum(session[1] for session in AI_SESSION_LOG)
+
+def get_project_age_days():
+    """Calculate days since project creation"""
+    created = datetime.strptime(APP_CREATED_DATE, "%Y-%m-%d")
+    now = datetime.now()
+    return (now - created).days
+
+def get_dev_comparison_stats():
+    """Get comparison stats: AI-assisted vs traditional development."""
+    total_traditional_hours = get_total_traditional_dev_hours()
+    project_age_days = get_project_age_days()
+
+    traditional_dev_days = total_traditional_hours / 8
+    traditional_dev_weeks = traditional_dev_days / 5
+
+    ai_assisted_hours = get_actual_ai_hours()
+
+    # Traditional: mid-level dev @ $100/hr
+    traditional_cost = total_traditional_hours * 100
+
+    # AI: Claude Code Pro subscription = $100/month
+    days_used = project_age_days if project_age_days > 0 else 1
+    ai_cost_prorated = round((CLAUDE_CODE_MONTHLY_COST / 30) * days_used, 2)
+
+    return {
+        "traditional_hours": total_traditional_hours,
+        "traditional_days": round(traditional_dev_days, 1),
+        "traditional_weeks": round(traditional_dev_weeks, 1),
+        "traditional_cost": traditional_cost,
+        "ai_assisted_hours": ai_assisted_hours,
+        "ai_assisted_days": project_age_days,
+        "ai_cost_monthly": CLAUDE_CODE_MONTHLY_COST,
+        "ai_cost_prorated": ai_cost_prorated,
+        "time_saved_percent": round((1 - (ai_assisted_hours / total_traditional_hours)) * 100, 1) if total_traditional_hours > 0 else 0,
+        "cost_saved_percent": round((1 - (ai_cost_prorated / traditional_cost)) * 100, 1) if traditional_cost > 0 else 0,
+        "versions_released": len(CHANGELOG),
+        "features_built": sum(len(entry[3]) for entry in CHANGELOG),
+        "session_count": len(AI_SESSION_LOG),
+    }
+
+# ============================================================================
 # PROOF DESIGN SYSTEM - Premium SaaS (Uber-inspired)
 # ============================================================================
 
@@ -1409,6 +1585,22 @@ ICONS = {
     'clipboard': f'''<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="{BRAND_PURPLE}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
         <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
+    </svg>''',
+
+    'code': f'''<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="{BRAND_PURPLE}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="16 18 22 12 16 6"></polyline>
+        <polyline points="8 6 2 12 8 18"></polyline>
+    </svg>''',
+
+    'history': f'''<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="{BRAND_PURPLE}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 3v5h5"></path>
+        <path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"></path>
+        <path d="M12 7v5l4 2"></path>
+    </svg>''',
+
+    'brain': f'''<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="{BRAND_PURPLE}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M9.5 2A5.5 5.5 0 0 0 4 7.5c0 1.5.5 2.8 1.4 3.8A5.5 5.5 0 0 0 4 15a5.5 5.5 0 0 0 5.5 5.5c1.3 0 2.5-.5 3.5-1.2a5.5 5.5 0 0 0 3.5 1.2A5.5 5.5 0 0 0 22 15c0-1.4-.5-2.7-1.4-3.7A5.5 5.5 0 0 0 22 7.5 5.5 5.5 0 0 0 16.5 2c-1.3 0-2.5.5-3.5 1.2A5.5 5.5 0 0 0 9.5 2z"></path>
+        <path d="M12 2v20"></path>
     </svg>''',
 }
 
@@ -14505,6 +14697,152 @@ def main():
             st.dataframe(df_waitlist, use_container_width=True, hide_index=True)
         else:
             st.info("No one on the waitlist yet.")
+
+        # =============================================
+        # PROJECT HISTORY & DEVELOPMENT STATS
+        # =============================================
+        code_icon = icon('code', 20)
+        st.markdown(f"""
+        <div style="display: flex; align-items: center; gap: 8px; margin: 40px 0 16px 0;">
+            {code_icon}
+            <h3 style="color: {theme['text']}; margin: 0;">Project History</h3>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # Get development stats
+        dev_stats = get_dev_comparison_stats()
+
+        # Project creation card
+        st.markdown(f"""
+        <div style="background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); border-radius: 12px; padding: 24px; margin-bottom: 20px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+                <div>
+                    <div style="color: rgba(255,255,255,0.8); font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">Proof by Shawn Hernandez</div>
+                    <div style="color: white; font-size: 28px; font-weight: 700; margin-top: 4px;">{get_version_string()}</div>
+                    <div style="color: rgba(255,255,255,0.7); font-size: 14px; margin-top: 4px;">Created {APP_CREATED_DATE} &middot; {dev_stats['ai_assisted_days']} days of development</div>
+                </div>
+                <div style="text-align: right;">
+                    <div style="color: white; font-size: 36px; font-weight: 700;">{dev_stats['versions_released']}</div>
+                    <div style="color: rgba(255,255,255,0.8); font-size: 12px;">Versions Released</div>
+                </div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # AI vs Traditional Development comparison
+        st.markdown(f"""
+        <div style="background: {theme['card']}; border: 1px solid {theme['border']}; border-radius: 12px; padding: 24px; margin-bottom: 20px;">
+            <div style="color: {theme['text']}; font-size: 16px; font-weight: 600; margin-bottom: 16px;">Development Comparison: AI-Assisted vs Traditional</div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+                <div style="background: {theme['bg']}; border: 1px solid {theme['border']}; border-radius: 8px; padding: 16px;">
+                    <div style="color: {theme['text_secondary']}; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">Traditional Development</div>
+                    <div style="color: {theme['text']}; font-size: 24px; font-weight: 700;">{dev_stats['traditional_hours']:,} hours</div>
+                    <div style="color: {theme['text_secondary']}; font-size: 13px; margin-top: 4px;">
+                        ~{dev_stats['traditional_weeks']} weeks &middot; ${dev_stats['traditional_cost']:,} cost
+                    </div>
+                    <div style="color: {theme['text_secondary']}; font-size: 12px; margin-top: 8px; font-style: italic;">
+                        Based on mid-level dev @ $100/hr
+                    </div>
+                </div>
+                <div style="background: linear-gradient(135deg, rgba(16,185,129,0.1) 0%, rgba(5,150,105,0.1) 100%); border: 1px solid rgba(16,185,129,0.3); border-radius: 8px; padding: 16px;">
+                    <div style="color: #10b981; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">AI-Assisted (Claude Code)</div>
+                    <div style="color: {theme['text']}; font-size: 24px; font-weight: 700;">{dev_stats['ai_assisted_hours']} hours</div>
+                    <div style="color: {theme['text_secondary']}; font-size: 13px; margin-top: 4px;">
+                        {dev_stats['ai_assisted_days']} days &middot; {dev_stats['session_count']} sessions
+                    </div>
+                    <div style="color: {theme['text_secondary']}; font-size: 12px; margin-top: 4px;">
+                        ${dev_stats['ai_cost_monthly']}/mo subscription (~${dev_stats['ai_cost_prorated']:.0f} prorated)
+                    </div>
+                    <div style="color: #10b981; font-size: 12px; margin-top: 8px; font-weight: 600;">
+                        {dev_stats['time_saved_percent']}% faster &middot; {dev_stats['cost_saved_percent']}% cheaper
+                    </div>
+                </div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # Features built summary
+        cost_saved = dev_stats['traditional_cost'] - int(dev_stats['ai_cost_prorated'])
+        st.markdown(f"""
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px;">
+            <div style="background: {theme['card']}; border: 1px solid {theme['border']}; border-radius: 12px; padding: 20px; text-align: center;">
+                <div style="color: #f59e0b; font-size: 32px; font-weight: 700;">{dev_stats['features_built']}</div>
+                <div style="color: {theme['text_secondary']}; font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">Features Built</div>
+            </div>
+            <div style="background: {theme['card']}; border: 1px solid {theme['border']}; border-radius: 12px; padding: 20px; text-align: center;">
+                <div style="color: #3b82f6; font-size: 32px; font-weight: 700;">{dev_stats['traditional_hours']:,}</div>
+                <div style="color: {theme['text_secondary']}; font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">Dev Hours Saved</div>
+            </div>
+            <div style="background: {theme['card']}; border: 1px solid {theme['border']}; border-radius: 12px; padding: 20px; text-align: center;">
+                <div style="color: #10b981; font-size: 32px; font-weight: 700;">${cost_saved:,}</div>
+                <div style="color: {theme['text_secondary']}; font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">Cost Saved</div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # Version History / Changelog
+        history_icon = icon('history', 20)
+        st.markdown(f"""
+        <div style="display: flex; align-items: center; gap: 8px; margin: 30px 0 16px 0;">
+            {history_icon}
+            <h3 style="color: {theme['text']}; margin: 0;">Version History</h3>
+        </div>
+        """, unsafe_allow_html=True)
+
+        for version, date, title, features, hours in CHANGELOG:
+            features_html = "".join([f'<li style="color: {theme["text_secondary"]}; font-size: 13px; margin: 4px 0;">{f}</li>' for f in features])
+            st.markdown(f"""
+            <div style="background: {theme['card']}; border: 1px solid {theme['border']}; border-radius: 8px; padding: 16px; margin-bottom: 12px;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+                    <div>
+                        <span style="color: {theme['text']}; font-weight: 600; font-size: 15px;">v{version}</span>
+                        <span style="color: {theme['text_secondary']}; font-size: 13px; margin-left: 8px;">{title}</span>
+                    </div>
+                    <div style="text-align: right;">
+                        <div style="color: {theme['text_secondary']}; font-size: 12px;">{date}</div>
+                        <div style="color: #f59e0b; font-size: 11px;">{hours}h traditional</div>
+                    </div>
+                </div>
+                <ul style="margin: 0; padding-left: 20px;">
+                    {features_html}
+                </ul>
+            </div>
+            """, unsafe_allow_html=True)
+
+        # AI Co-Training Progress
+        try:
+            training_stats = learning_db.get_claude_training_stats()
+            if training_stats.get('total_classifications', 0) > 0:
+                brain_icon = icon('brain', 20)
+                st.markdown(f"""
+                <div style="display: flex; align-items: center; gap: 8px; margin: 30px 0 16px 0;">
+                    {brain_icon}
+                    <h3 style="color: {theme['text']}; margin: 0;">AI Co-Training Progress</h3>
+                </div>
+                """, unsafe_allow_html=True)
+
+                st.markdown(f"""
+                <div style="background: {theme['card']}; border: 1px solid {theme['border']}; border-radius: 12px; padding: 20px;">
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px;">
+                        <div>
+                            <div style="color: {theme['text_secondary']}; font-size: 11px; text-transform: uppercase; margin-bottom: 4px;">Classifications Collected</div>
+                            <div style="color: {theme['text']}; font-size: 24px; font-weight: 600;">{training_stats['total_classifications']:,}</div>
+                        </div>
+                        <div>
+                            <div style="color: {theme['text_secondary']}; font-size: 11px; text-transform: uppercase; margin-bottom: 4px;">Room Types Learned</div>
+                            <div style="color: {theme['text']}; font-size: 24px; font-weight: 600;">{len(training_stats.get('by_room_type', {}))}</div>
+                        </div>
+                    </div>
+                    <div style="color: {theme['text_secondary']}; font-size: 12px; margin-top: 12px;">
+                        Photos: {training_stats.get('by_source', {}).get('photo', 0)} &middot; Video Frames: {training_stats.get('by_source', {}).get('video_frame', 0)}
+                    </div>
+                    <div style="color: #10b981; font-size: 12px; margin-top: 8px;">
+                        Every Claude Vision classification trains the local model, reducing future API costs.
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+        except:
+            pass
 
         render_footer()
         return
