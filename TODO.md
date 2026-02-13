@@ -21,10 +21,11 @@
 - [x] **Add Local Path tab to Director X** — local video path for frame extraction
 - [x] **Update homepage** — "Your Work Deserves Better" tagline, trimmed sections, "Ready to Stop Sucking?" dual CTA
 - [x] **Fix black-on-black CSS** — Legacy CSS dark-mode colors overriding light mode on tabs, radio buttons, inputs, and cards
+- [x] **Fix admin email** — `shawn.keepitcity@gmail.com` is admin, `@aerialcanvas.com` are team, everyone else waitlist
 
 ## In Progress / Pending
 
-- [ ] **Fix admin email** — change `shawn@aerialcanvas.com` to `shawn.keepitcity@gmail.com` in database.py (`is_admin()`, `is_team_member()`, `create_user()`)
+(none — all caught up!)
 
 ## Future / Backlog
 
