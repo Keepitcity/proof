@@ -13653,7 +13653,7 @@ def main():
         .proof-user-dropdown:hover .proof-user-dropdown-content {{ display: block; }}
         .proof-user-dropdown-content a:hover {{ background: {theme['border']}; }}
         .proof-beta-badge {{
-            background: #7C3AED !important;
+            background: #9461F5 !important;
             color: #000000 !important;
             font-size: 9px !important;
             font-weight: 600 !important;
