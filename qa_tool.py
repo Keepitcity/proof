@@ -13613,8 +13613,8 @@ def main():
                     <a href="{build_nav_url('video_sort')}" target="_parent" class="proof-dropdown-item">Video</a>
                 </div>
             </div>
-            <a href="{build_nav_url('timeline_x')}" target="_parent" class="proof-navbar-link {'active' if current_page == 'Timeline X' else ''}" style="display: flex; align-items: center; gap: 6px;">Timeline X <span style="background: #7C3AED; color: white; font-size: 9px; font-weight: 600; padding: 2px 6px; border-radius: 4px;">BETA</span></a>
-            <a href="{build_nav_url('director_x')}" target="_parent" class="proof-navbar-link {'active' if current_page == 'Director X' else ''}" style="display: flex; align-items: center; gap: 6px;">Director X <span style="background: #7C3AED; color: white; font-size: 9px; font-weight: 600; padding: 2px 6px; border-radius: 4px;">BETA</span></a>
+            <a href="{build_nav_url('timeline_x')}" target="_parent" class="proof-navbar-link {'active' if current_page == 'Timeline X' else ''}" style="display: flex; align-items: center; gap: 6px;">Timeline X <span style="background: #6D28D9; color: #000000; font-size: 9px; font-weight: 600; padding: 2px 6px; border-radius: 4px;">BETA</span></a>
+            <a href="{build_nav_url('director_x')}" target="_parent" class="proof-navbar-link {'active' if current_page == 'Director X' else ''}" style="display: flex; align-items: center; gap: 6px;">Director X <span style="background: #6D28D9; color: #000000; font-size: 9px; font-weight: 600; padding: 2px 6px; border-radius: 4px;">BETA</span></a>
         </div>
         <div class="proof-navbar-right">
             <div class="proof-user-dropdown">
