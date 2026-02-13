@@ -13653,16 +13653,13 @@ def main():
         .proof-user-dropdown:hover .proof-user-dropdown-content {{ display: block; }}
         .proof-user-dropdown-content a:hover {{ background: {theme['border']}; }}
         .proof-beta-badge {{
-            background: linear-gradient(135deg, #C4B5FD 0%, #A78BFA 50%, #C4B5FD 100%) !important;
-            color: #3B0764 !important;
-            font-size: 8px !important;
-            font-weight: 700 !important;
-            padding: 3px 8px !important;
+            background: #7C3AED !important;
+            color: #000000 !important;
+            font-size: 9px !important;
+            font-weight: 600 !important;
+            padding: 2px 6px !important;
             border-radius: 4px !important;
             display: inline-block !important;
-            letter-spacing: 1.2px !important;
-            border: 1px solid rgba(139, 92, 246, 0.3) !important;
-            box-shadow: 0 1px 3px rgba(139, 92, 246, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.25) !important;
         }}
     </style>
     """, unsafe_allow_html=True)
