@@ -27,12 +27,14 @@
 
 ## In Progress / Pending
 
-- [ ] **Google OAuth redirect URI** — add `http://localhost:8502` in Google Cloud Console (you do this in your browser)
-- [ ] **GitHub ownership** — clarify if `shawnac1` is your personal account or Aerial Canvas; if not yours, create new repo under personal GitHub
-- [ ] **Streamlit Cloud deployment** — deploy to share.streamlit.io under personal GitHub, paste secrets, add production redirect URI
+- [x] **Google OAuth redirect URI** — added localhost:8502 + proof-app.streamlit.app
+- [x] **GitHub ownership** — migrated to Keepitcity/proof (personal account)
+- [x] **Streamlit Cloud deployment** — live at proof-app.streamlit.app under Keepitcity
+- [ ] **ConsultationX backend** — AI-powered consultation training tool (framework built in `consultation_x.py`, needs UI integration)
 
 ## Future / Backlog
 
+- [ ] **ConsultationX UI integration** — add to navbar with BETA badge, build full interactive page
 - [ ] Re-implement dark mode (see `dark_mode_reference.md`)
 - [ ] Push to remote GitHub regularly
 
@@ -46,6 +48,7 @@
 - `timeline_x.py` — timeline assembly engine
 - `timeline_x_analyzer.py` — FFprobe/BPM analysis
 - `timeline_x_framework.py` — editorial rules/knowledge base
+- `consultation_x.py` — ConsultationX training engine (scenarios, scoring, AI prompts)
 - `dark_mode_reference.md` — saved dark mode code for later
 - `.streamlit/secrets.toml` — OAuth + API keys (NEVER commit)
 
