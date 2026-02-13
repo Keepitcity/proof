@@ -1,5 +1,5 @@
 """
-User Authentication and Tracking Database for Proof by Aerial Canvas
+User Authentication and Tracking Database for Proof by Shawn Hernandez
 Handles user management, waitlist, and per-user statistics.
 """
 
@@ -99,7 +99,10 @@ class UserDatabase:
 
     def create_user(self, email: str, name: str = None, picture_url: str = None) -> int:
         """Create a new user and return their ID"""
-        is_team_member = email.lower().endswith('@aerialcanvas.com')
+        is_team_member = (
+            email.lower().endswith('@aerialcanvas.com') or
+            email.lower() == 'shawn.keepitcity@gmail.com'
+        )
 
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
@@ -160,8 +163,11 @@ class UserDatabase:
             return user, True
 
     def is_team_member(self, email: str) -> bool:
-        """Check if email is an Aerial Canvas team member"""
-        return email.lower().endswith('@aerialcanvas.com')
+        """Check if email is a team member (Aerial Canvas or admin)"""
+        return (
+            email.lower().endswith('@aerialcanvas.com') or
+            email.lower() == 'shawn.keepitcity@gmail.com'
+        )
 
     # Waitlist management
     def add_to_waitlist(self, email: str, name: str = None, notes: str = None) -> bool:
@@ -355,8 +361,8 @@ class UserDatabase:
         return count
 
     def is_admin(self, email: str) -> bool:
-        """Check if user is an admin (currently just shawn@aerialcanvas.com)"""
-        admin_emails = ['shawn@aerialcanvas.com']
+        """Check if user is an admin"""
+        admin_emails = ['shawn.keepitcity@gmail.com']
         return email.lower() in [e.lower() for e in admin_emails]
 
     # User Profile management

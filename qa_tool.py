@@ -14559,7 +14559,7 @@ def main():
         return
 
     # =============================================
-    # ADMIN DASHBOARD - Only for shawn@aerialcanvas.com
+    # ADMIN DASHBOARD - Only for shawn.keepitcity@gmail.com
     # =============================================
     if app_mode == "Admin":
         # Security check - only admin can access
