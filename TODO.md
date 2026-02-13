@@ -14,16 +14,17 @@
 - [x] **Navbar reorder** — Photo | Video | Auto Sort | Timeline X BETA | Director X BETA
 - [x] **BETA badge styling** — purple #9461F5 with CSS class
 - [x] **Remove lock emoji from Sign in button**
+- [x] **Add Local Path tab to Photo Proof** — third tab for local file path on Mac
+- [x] **Add Local Path tab to Video Proof** — third tab for local video path
+- [x] **Add Local Path tab to Auto Sort (Photo & Video)** — tabs/radio for Dropbox | Local Path
+- [x] **Add Local Path tab to Timeline X** — local folder of clips + music file path
+- [x] **Add Local Path tab to Director X** — local video path for frame extraction
+- [x] **Update homepage** — "Your Work Deserves Better" tagline, trimmed sections, "Ready to Stop Sucking?" dual CTA
+- [x] **Fix black-on-black CSS** — Legacy CSS dark-mode colors overriding light mode on tabs, radio buttons, inputs, and cards
 
 ## In Progress / Pending
 
 - [ ] **Fix admin email** — change `shawn@aerialcanvas.com` to `shawn.keepitcity@gmail.com` in database.py (`is_admin()`, `is_team_member()`, `create_user()`)
-- [ ] **Add Local Path tab to Photo Proof** — third tab for typing/pasting local file path on Mac, no upload needed
-- [ ] **Add Local Path tab to Video Proof** — third tab for local video path, same analysis pipeline
-- [ ] **Add Local Path tab to Auto Sort (Photo & Video)** — restructure with tabs (Dropbox | Local Path), wire up `local_folder.py` backend for folder scanning, sorting, renaming, `_Sorted` output
-- [ ] **Add Local Path tab to Timeline X** — local folder of clips + music file path, use `timeline_x.add_clips_from_folder()` directly
-- [ ] **Add Local Path tab to Director X** — local video path for frame extraction + Claude Vision analysis
-- [ ] **Update homepage** — stronger opening tagline (replace "Don't suck."), remove "Who's it for" / "Where we're starting" / "Where we're going" sections, add "Ready to stop sucking?" CTA at bottom with "Get started" button routing to Photo Proof
 
 ## Future / Backlog
 
