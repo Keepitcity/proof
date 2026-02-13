@@ -39,6 +39,15 @@
 
 ## What Needs Work Next (Priority Order)
 
+### 0. Live Site Buttons Not Clickable — PRIORITY
+**Problem:** Everything works locally (localhost:8502) but on the pushed version (proof-app.streamlit.app), buttons and links are not clickable. This is a deployment-specific issue.
+**Possible causes:**
+- CSS overlay blocking clicks (z-index issue with custom HTML/markdown)
+- JavaScript in `components.html()` interfering with Streamlit's event handling
+- The custom `declare_component` for phone call loading incorrectly and blocking the page
+- Streamlit Cloud running a different Python/Streamlit version than local
+**Next step:** Compare local vs live behavior, check browser console for errors on the live site.
+
 ### 1. Phone Call Voice — NOT WORKING YET
 **Problem:** The custom `declare_component` approach has issues:
 - **TTS (hearing the client):** ElevenLabs generates audio server-side, but the custom iframe component can't reliably play it. Browser blocks audio autoplay in iframes.

@@ -36,6 +36,7 @@
 
 ## In Progress
 
+- [ ] **Live site buttons not clickable** — Everything works locally but the pushed version at proof-app.streamlit.app has buttons/links that aren't clickable. Needs investigation — could be a CSS/JS issue specific to Streamlit Cloud deployment.
 - [ ] **Phone Call voice — FIX NEEDED** — TTS not audible + speech recognition not working in iframe. See `SESSION_NOTES.md` for details and fix options.
 
 ## Future / Backlog
