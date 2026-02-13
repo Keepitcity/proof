@@ -17014,7 +17014,8 @@ def main():
                 """, unsafe_allow_html=True)
 
                 # Category breakdown
-                st.markdown(f"<h3 style='color: {theme[\"text\"]}; margin-bottom: 16px;'>Category Breakdown</h3>", unsafe_allow_html=True)
+                text_color = theme['text']
+                st.markdown(f"<h3 style='color: {text_color}; margin-bottom: 16px;'>Category Breakdown</h3>", unsafe_allow_html=True)
                 for cs in result.category_scores:
                     bar_color = "#22c55e" if cs.score >= 80 else "#eab308" if cs.score >= 60 else "#ef4444"
                     st.markdown(f"""
@@ -17033,7 +17034,7 @@ def main():
                 # Strengths & Improvements
                 cx_res_col1, cx_res_col2 = st.columns(2)
                 with cx_res_col1:
-                    st.markdown(f"<h3 style='color: {theme[\"text\"]}; margin-bottom: 12px;'>Strengths</h3>", unsafe_allow_html=True)
+                    st.markdown(f"<h3 style='color: {text_color}; margin-bottom: 12px;'>Strengths</h3>", unsafe_allow_html=True)
                     for s in result.strengths:
                         st.markdown(f"""
                         <div style="background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.3); border-radius: 8px; padding: 10px 14px; margin-bottom: 8px;">
@@ -17041,7 +17042,7 @@ def main():
                         </div>
                         """, unsafe_allow_html=True)
                 with cx_res_col2:
-                    st.markdown(f"<h3 style='color: {theme[\"text\"]}; margin-bottom: 12px;'>Areas to Improve</h3>", unsafe_allow_html=True)
+                    st.markdown(f"<h3 style='color: {text_color}; margin-bottom: 12px;'>Areas to Improve</h3>", unsafe_allow_html=True)
                     for imp in result.improvements:
                         st.markdown(f"""
                         <div style="background: rgba(249, 115, 22, 0.1); border: 1px solid rgba(249, 115, 22, 0.3); border-radius: 8px; padding: 10px 14px; margin-bottom: 8px;">
@@ -17051,7 +17052,7 @@ def main():
 
                 # Key moments
                 if result.key_moments:
-                    st.markdown(f"<h3 style='color: {theme[\"text\"]}; margin-top: 16px; margin-bottom: 12px;'>Key Moments</h3>", unsafe_allow_html=True)
+                    st.markdown(f"<h3 style='color: {text_color}; margin-top: 16px; margin-bottom: 12px;'>Key Moments</h3>", unsafe_allow_html=True)
                     for km in result.key_moments:
                         st.markdown(f"""
                         <div style="background: {theme['bg_secondary']}; border: 1px solid {theme['border']}; border-left: 3px solid #9461F5; border-radius: 8px; padding: 12px 16px; margin-bottom: 8px;">
