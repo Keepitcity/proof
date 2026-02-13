@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: transparent; }
+
+  /* ---- RINGING SCREEN ---- */
+  .ringing-screen {
+    background: linear-gradient(135deg, #1a1a2e, #16213e);
+    border-radius: 16px;
+    padding: 48px 24px;
+    text-align: center;
+  }
+  .ringing-screen .avatar {
+    width: 96px; height: 96px; border-radius: 50%;
+    border: 3px solid #9461F5;
+    margin: 0 auto 16px auto; display: block;
+  }
+  .ringing-screen .caller-name {
+    color: #fff; font-size: 22px; font-weight: 700; margin-bottom: 4px;
+  }
+  .ringing-screen .caller-company {
+    color: #a1a1aa; font-size: 14px; margin-bottom: 24px;
+  }
+  .ringing-screen .calling-text {
+    color: #22c55e; font-size: 15px; font-weight: 600;
+    margin-bottom: 32px;
+    animation: pulse 1.5s infinite;
+  }
+  .call-buttons {
+    display: flex; justify-content: center; gap: 32px;
+  }
+  .call-btn {
+    width: 72px; height: 72px; border-radius: 50%; border: none;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; transition: transform 0.15s;
+  }
+  .call-btn:hover { transform: scale(1.08); }
+  .call-btn svg { width: 28px; height: 28px; }
+  .pickup-btn { background: #22c55e; }
+  .pickup-btn svg { fill: #fff; }
+  .decline-btn { background: #ef4444; }
+  .decline-btn svg { fill: #fff; }
+  .call-btn-label {
+    color: #a1a1aa; font-size: 11px; margin-top: 8px; text-align: center;
+  }
+
+  /* ---- ACTIVE CALL ---- */
+  .active-call {
+    background: linear-gradient(135deg, #1a1a2e, #16213e);
+    border-radius: 16px; overflow: hidden;
+  }
+  .call-header {
+    display: flex; align-items: center; padding: 20px 24px;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+  }
+  .call-header .avatar {
+    width: 44px; height: 44px; border-radius: 50%;
+    border: 2px solid #9461F5; margin-right: 12px;
+  }
+  .call-header .info { flex: 1; }
+  .call-header .name { color: #fff; font-size: 16px; font-weight: 600; }
+  .call-header .company { color: #a1a1aa; font-size: 12px; }
+  .live-badge {
+    display: flex; align-items: center; gap: 6px;
+  }
+  .live-dot {
+    width: 8px; height: 8px; background: #22c55e; border-radius: 50%;
+    animation: pulse 1.5s infinite;
+  }
+  .live-text { color: #22c55e; font-size: 12px; font-weight: 600; }
+
+  /* Messages */
+  .messages-area {
+    padding: 16px 24px; max-height: 320px; overflow-y: auto;
+    min-height: 80px;
+  }
+  .msg { display: flex; gap: 8px; margin-bottom: 12px; }
+  .msg-avatar { width: 28px; height: 28px; border-radius: 50%; border: 1px solid #9461F5; flex-shrink: 0; }
+  .client-msg { justify-content: flex-start; }
+  .user-msg { justify-content: flex-end; }
+  .msg-bubble {
+    border-radius: 12px; padding: 10px 14px;
+    font-size: 14px; line-height: 1.5; max-width: 80%;
+  }
+  .client-bubble {
+    background: rgba(255,255,255,0.08); color: #e4e4e7;
+    border-top-left-radius: 4px;
+  }
+  .user-bubble {
+    background: linear-gradient(135deg, #9461F5, #7C3AED); color: #fff;
+    border-top-right-radius: 4px;
+  }
+
+  /* Listening area */
+  .listening-area {
+    padding: 16px 24px; text-align: center;
+    border-top: 1px solid rgba(255,255,255,0.06);
+  }
+  .listening-indicator {
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    color: #22c55e; font-size: 14px; font-weight: 600;
+    margin-bottom: 8px;
+  }
+  .mic-icon {
+    width: 48px; height: 48px; border-radius: 50%;
+    background: rgba(34, 197, 94, 0.15); border: 2px solid #22c55e;
+    display: flex; align-items: center; justify-content: center;
+    animation: mic-pulse 1.2s infinite;
+  }
+  .mic-icon svg { width: 20px; height: 20px; fill: #22c55e; }
+  .interim-text {
+    color: #a1a1aa; font-size: 13px; font-style: italic;
+    min-height: 20px; margin-top: 6px;
+  }
+  .waiting-text {
+    color: #a1a1aa; font-size: 13px; margin-top: 4px;
+  }
+  .processing-text {
+    color: #eab308; font-size: 14px; font-weight: 600;
+  }
+  .no-speech-support {
+    color: #ef4444; font-size: 13px; padding: 12px;
+  }
+
+  /* Controls */
+  .call-controls {
+    padding: 16px 24px;
+    border-top: 1px solid rgba(255,255,255,0.06);
+    display: flex; justify-content: center;
+  }
+  .end-call-btn {
+    background: #ef4444; color: #fff; border: none;
+    padding: 10px 32px; border-radius: 24px;
+    font-size: 14px; font-weight: 600; cursor: pointer;
+    transition: background 0.15s;
+  }
+  .end-call-btn:hover { background: #dc2626; }
+
+  /* Animations */
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+  @keyframes mic-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.3); }
+    50% { box-shadow: 0 0 0 12px rgba(34, 197, 94, 0); }
+  }
+</style>
+</head>
+<body>
+<div id="phone-ui"></div>
+
+<script>
+// ---- Streamlit Communication ----
+function sendToStreamlit(type, data) {
+  window.parent.postMessage(
+    Object.assign({ isStreamlitMessage: true, type: type }, data || {}),
+    "*"
+  );
+}
+function setComponentValue(value) {
+  sendToStreamlit("streamlit:setComponentValue", { value: value });
+}
+function setFrameHeight(h) {
+  sendToStreamlit("streamlit:setFrameHeight", { height: h });
+}
+// Signal ready
+sendToStreamlit("streamlit:componentReady", { apiVersion: 1 });
+
+// ---- State ----
+var currentArgs = {};
+var recognition = null;
+var isListening = false;
+var audioCtx = null;
+var currentSource = null;
+var hasSpeechSupport = ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window);
+
+// ---- Speech Recognition Setup ----
+if (hasSpeechSupport) {
+  var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  recognition = new SpeechRecognition();
+  recognition.continuous = false;
+  recognition.interimResults = true;
+  recognition.lang = 'en-US';
+}
+
+// ---- Render ----
+window.addEventListener("message", function(event) {
+  if (!event.data || event.data.type !== "streamlit:render") return;
+  currentArgs = event.data.args || {};
+  render(currentArgs);
+});
+
+function render(args) {
+  var state = args.state || 'ringing';
+  if (state === 'ringing') {
+    renderRinging(args);
+  } else if (state === 'active') {
+    renderActive(args);
+  } else if (state === 'processing') {
+    renderProcessing(args);
+  }
+  // Adjust height after render
+  setTimeout(function() {
+    var el = document.getElementById('phone-ui');
+    if (el) setFrameHeight(el.scrollHeight + 10);
+  }, 50);
+}
+
+// ---- RINGING ----
+function renderRinging(args) {
+  var p = args.persona || {};
+  var avatar = args.avatar_url || '';
+  document.getElementById('phone-ui').innerHTML =
+    '<div class="ringing-screen">' +
+      '<img class="avatar" src="' + avatar + '" alt="' + (p.name || '') + '" />' +
+      '<div class="caller-name">' + (p.name || 'Unknown') + '</div>' +
+      '<div class="caller-company">' + (p.company || '') + '</div>' +
+      '<div class="calling-text">Incoming Call...</div>' +
+      '<div class="call-buttons">' +
+        '<div>' +
+          '<button class="call-btn decline-btn" onclick="doDecline()">' +
+            '<svg viewBox="0 0 24 24"><path d="M23.71 16.67a20.97 20.97 0 0 0-9.8-4.32c-.28-.05-.57.04-.79.24l-2.26 2.07a15.93 15.93 0 0 1-5.52-5.52l2.07-2.26c.2-.22.29-.51.24-.79A20.97 20.97 0 0 0 3.33.29 1 1 0 0 0 2.51 0H.88A.88.88 0 0 0 0 .88C0 13.39 10.61 24 23.12 24a.88.88 0 0 0 .88-.88v-1.63a1 1 0 0 0-.29-.82z" transform="rotate(135 12 12)"/></svg>' +
+          '</button>' +
+          '<div class="call-btn-label">Decline</div>' +
+        '</div>' +
+        '<div>' +
+          '<button class="call-btn pickup-btn" onclick="doPickUp()">' +
+            '<svg viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.79 19.79 0 0 1 2.12 4.11 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg>' +
+          '</button>' +
+          '<div class="call-btn-label">Pick Up</div>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+
+  // Ring tone
+  playRingTone();
+}
+
+// ---- ACTIVE CALL ----
+function renderActive(args) {
+  var p = args.persona || {};
+  var avatar = args.avatar_url || '';
+  var msgs = args.messages || [];
+  var ttsAudio = args.tts_audio || null;
+  var turnCount = args.turn_count || 0;
+  var turnsLeft = args.turns_left || 0;
+
+  var msgsHtml = '';
+  for (var i = 0; i < msgs.length; i++) {
+    var m = msgs[i];
+    if (m.role === 'client') {
+      msgsHtml += '<div class="msg client-msg">' +
+        '<img class="msg-avatar" src="' + avatar + '" />' +
+        '<div class="msg-bubble client-bubble">' + escapeHtml(m.content) + '</div>' +
+        '</div>';
+    } else {
+      msgsHtml += '<div class="msg user-msg">' +
+        '<div class="msg-bubble user-bubble">' + escapeHtml(m.content) + '</div>' +
+        '</div>';
+    }
+  }
+
+  var listeningHtml = '';
+  if (!hasSpeechSupport) {
+    listeningHtml = '<div class="no-speech-support">Voice recognition is not supported in this browser. Please use Chrome or Edge.</div>';
+  } else {
+    listeningHtml =
+      '<div class="listening-indicator" id="listening-indicator" style="display:none;">' +
+        '<div class="mic-icon"><svg viewBox="0 0 24 24"><path d="M12 1a4 4 0 0 0-4 4v6a4 4 0 0 0 8 0V5a4 4 0 0 0-4-4zm0 18a7 7 0 0 0 7-7h-2a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.93V22h2v-3.07z"/></svg></div>' +
+        '<span id="listening-label">Listening...</span>' +
+      '</div>' +
+      '<div class="interim-text" id="interim-text"></div>';
+  }
+
+  document.getElementById('phone-ui').innerHTML =
+    '<div class="active-call">' +
+      '<div class="call-header">' +
+        '<img class="avatar" src="' + avatar + '" alt="' + (p.name || '') + '" />' +
+        '<div class="info">' +
+          '<div class="name">' + (p.name || '') + '</div>' +
+          '<div class="company">' + (p.company || '') + '</div>' +
+        '</div>' +
+        '<div class="live-badge"><div class="live-dot"></div><span class="live-text">LIVE</span></div>' +
+      '</div>' +
+      '<div class="messages-area" id="messages-area">' + msgsHtml + '</div>' +
+      '<div class="listening-area" id="listening-area">' + listeningHtml + '</div>' +
+      '<div class="call-controls">' +
+        '<div style="color:#a1a1aa;font-size:12px;margin-right:auto;">' + turnCount + ' exchanges | ' + turnsLeft + ' left</div>' +
+        '<button class="end-call-btn" onclick="doEndCall()">End Call</button>' +
+      '</div>' +
+    '</div>';
+
+  // Scroll messages to bottom
+  var area = document.getElementById('messages-area');
+  if (area) area.scrollTop = area.scrollHeight;
+
+  // Play TTS audio, then start listening
+  if (ttsAudio && ttsAudio.length > 100) {
+    playAudio(ttsAudio, function() {
+      startListening();
+    });
+  } else {
+    // No audio to play, start listening right away
+    startListening();
+  }
+}
+
+// ---- PROCESSING (waiting for AI) ----
+function renderProcessing(args) {
+  var p = args.persona || {};
+  var avatar = args.avatar_url || '';
+  var msgs = args.messages || [];
+
+  var msgsHtml = '';
+  for (var i = 0; i < msgs.length; i++) {
+    var m = msgs[i];
+    if (m.role === 'client') {
+      msgsHtml += '<div class="msg client-msg">' +
+        '<img class="msg-avatar" src="' + avatar + '" />' +
+        '<div class="msg-bubble client-bubble">' + escapeHtml(m.content) + '</div>' +
+        '</div>';
+    } else {
+      msgsHtml += '<div class="msg user-msg">' +
+        '<div class="msg-bubble user-bubble">' + escapeHtml(m.content) + '</div>' +
+        '</div>';
+    }
+  }
+
+  document.getElementById('phone-ui').innerHTML =
+    '<div class="active-call">' +
+      '<div class="call-header">' +
+        '<img class="avatar" src="' + avatar + '" alt="' + (p.name || '') + '" />' +
+        '<div class="info">' +
+          '<div class="name">' + (p.name || '') + '</div>' +
+          '<div class="company">' + (p.company || '') + '</div>' +
+        '</div>' +
+        '<div class="live-badge"><div class="live-dot"></div><span class="live-text">LIVE</span></div>' +
+      '</div>' +
+      '<div class="messages-area" id="messages-area">' + msgsHtml + '</div>' +
+      '<div class="listening-area">' +
+        '<div class="processing-text">Client is thinking...</div>' +
+      '</div>' +
+      '<div class="call-controls">' +
+        '<button class="end-call-btn" onclick="doEndCall()">End Call</button>' +
+      '</div>' +
+    '</div>';
+
+  var area = document.getElementById('messages-area');
+  if (area) area.scrollTop = area.scrollHeight;
+}
+
+// ---- Audio Playback (Web Audio API) ----
+function getAudioCtx() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  return audioCtx;
+}
+
+function playAudio(base64Audio, onDone) {
+  try {
+    var raw = atob(base64Audio);
+    var arr = new Uint8Array(raw.length);
+    for (var i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
+    var ctx = getAudioCtx();
+    ctx.decodeAudioData(arr.buffer.slice(0), function(buf) {
+      if (currentSource) {
+        try { currentSource.stop(); } catch(e) {}
+      }
+      var src = ctx.createBufferSource();
+      src.buffer = buf;
+      src.connect(ctx.destination);
+      src.onended = function() {
+        currentSource = null;
+        if (onDone) onDone();
+      };
+      currentSource = src;
+      src.start(0);
+    }, function(err) {
+      console.error("Audio decode error:", err);
+      if (onDone) onDone();
+    });
+  } catch(e) {
+    console.error("Audio playback error:", e);
+    if (onDone) onDone();
+  }
+}
+
+function playRingTone() {
+  var ctx = getAudioCtx();
+  function ring(t) {
+    for (var i = 0; i < 2; i++) {
+      var osc = ctx.createOscillator();
+      var gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.frequency.value = 440;
+      osc.type = 'sine';
+      gain.gain.value = 0.12;
+      osc.start(t + i * 0.3);
+      osc.stop(t + i * 0.3 + 0.2);
+    }
+  }
+  ring(ctx.currentTime + 0.2);
+  ring(ctx.currentTime + 1.2);
+  ring(ctx.currentTime + 2.2);
+}
+
+// ---- Speech Recognition ----
+function startListening() {
+  if (!recognition || !hasSpeechSupport) return;
+  if (isListening) return;
+
+  var indicator = document.getElementById('listening-indicator');
+  var interimDiv = document.getElementById('interim-text');
+  var label = document.getElementById('listening-label');
+  if (indicator) indicator.style.display = 'flex';
+  if (interimDiv) interimDiv.textContent = '';
+  if (label) label.textContent = 'Listening...';
+
+  var finalTranscript = '';
+  isListening = true;
+
+  recognition.onresult = function(event) {
+    var interim = '';
+    for (var i = event.resultIndex; i < event.results.length; i++) {
+      if (event.results[i].isFinal) {
+        finalTranscript += event.results[i][0].transcript;
+      } else {
+        interim += event.results[i][0].transcript;
+      }
+    }
+    if (interimDiv) {
+      interimDiv.textContent = finalTranscript || interim || '';
+    }
+  };
+
+  recognition.onend = function() {
+    isListening = false;
+    if (indicator) indicator.style.display = 'none';
+
+    if (finalTranscript.trim()) {
+      // User said something — send it
+      if (interimDiv) interimDiv.textContent = 'Sending: "' + finalTranscript.trim() + '"';
+      setComponentValue({ action: 'speech', text: finalTranscript.trim() });
+    } else {
+      // Silence — restart listening after a brief pause
+      setTimeout(function() { startListening(); }, 300);
+    }
+  };
+
+  recognition.onerror = function(event) {
+    isListening = false;
+    if (event.error === 'no-speech' || event.error === 'aborted') {
+      // Normal — just restart
+      setTimeout(function() { startListening(); }, 500);
+    } else if (event.error === 'not-allowed') {
+      if (indicator) indicator.style.display = 'none';
+      var la = document.getElementById('listening-area');
+      if (la) la.innerHTML = '<div class="no-speech-support">Mic access denied. Please allow microphone access in your browser settings and reload.</div>';
+    }
+  };
+
+  try {
+    recognition.start();
+  } catch(e) {
+    isListening = false;
+    setTimeout(function() { startListening(); }, 500);
+  }
+}
+
+function stopListening() {
+  if (recognition && isListening) {
+    try { recognition.stop(); } catch(e) {}
+    isListening = false;
+  }
+}
+
+// ---- Actions ----
+function doPickUp() {
+  setComponentValue({ action: 'pick_up' });
+}
+function doDecline() {
+  setComponentValue({ action: 'decline' });
+}
+function doEndCall() {
+  stopListening();
+  if (currentSource) { try { currentSource.stop(); } catch(e) {} }
+  setComponentValue({ action: 'end_call' });
+}
+
+// ---- Util ----
+function escapeHtml(text) {
+  var div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+</script>
+</body>
+</html>

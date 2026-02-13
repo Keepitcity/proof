@@ -16888,68 +16888,147 @@ def main():
                             st.session_state.cx_call_active = True
                             st.session_state.cx_start_time = time.time()
                             st.session_state.cx_opening_spoken = False
-                            # For phone mode, set ringing state
+                            # For phone mode, use the custom component flow
                             if "Phone Call" in cx_mode:
-                                st.session_state.cx_ringing = True
+                                st.session_state.cx_phone_state = "ringing"
+                                st.session_state.cx_tts_audio = None
                             st.rerun()
 
-            # ---- STATE: Phone is ringing ----
-            elif st.session_state.get('cx_ringing', False) and st.session_state.cx_session:
+            # ---- STATE: Phone Call mode (custom component) ----
+            elif st.session_state.cx_call_active and st.session_state.cx_session and st.session_state.get('cx_mode', '') == "Phone Call":
+                import streamlit.components.v1 as cx_comp
+                import json as cx_json
+                import os as cx_os
+                import base64 as cx_b64
+
                 session = st.session_state.cx_session
-                persona = session.scenario.client_persona
-                cx_ring_seed = persona.name.replace(" ", "")
-                cx_ring_avatar = f"https://api.dicebear.com/7.x/notionists/svg?seed={cx_ring_seed}&backgroundColor=b6e3f4,c0aede,d1d4f9&size=80"
+                scenario = session.scenario
+                persona = scenario.client_persona
+                cx_avatar_seed = persona.name.replace(" ", "")
+                cx_avatar_url = f"https://api.dicebear.com/7.x/notionists/svg?seed={cx_avatar_seed}&backgroundColor=b6e3f4,c0aede,d1d4f9&size=96"
 
-                st.markdown(f"""
-                <div style="background: linear-gradient(135deg, #1a1a2e, #16213e); border-radius: 16px; padding: 48px; text-align: center; margin-bottom: 20px;">
-                    <img src="{cx_ring_avatar}" style="width: 80px; height: 80px; border-radius: 50%; border: 3px solid #9461F5; margin-bottom: 16px;" alt="{persona.name}" />
-                    <div style="color: #FFFFFF; font-size: 20px; font-weight: 600; margin-bottom: 4px;">{persona.name}</div>
-                    <div style="color: #a1a1aa; font-size: 14px; margin-bottom: 24px;">{persona.company}</div>
-                    <div style="color: #22c55e; font-size: 16px; font-weight: 600; animation: pulse 1.5s infinite;">Calling...</div>
-                </div>
-                <style>
-                @keyframes pulse {{
-                    0%, 100% {{ opacity: 1; }}
-                    50% {{ opacity: 0.3; }}
-                }}
-                </style>
-                """, unsafe_allow_html=True)
+                # Prepare messages for the component
+                cx_msgs_data = [{"role": m.role, "content": m.content} for m in session.messages]
+                cx_persona_data = {"name": persona.name, "company": persona.company, "city": persona.city}
 
-                # Play ringing sound via Web Audio API
-                import streamlit.components.v1 as cx_ring_comp
-                cx_ring_comp.html("""
-                <script>
-                    (function() {
-                        var ctx = new (window.AudioContext || window.webkitAudioContext)();
-                        function ring(startTime) {
-                            // Ring tone: two short beeps
-                            for (var i = 0; i < 2; i++) {
-                                var osc = ctx.createOscillator();
-                                var gain = ctx.createGain();
-                                osc.connect(gain);
-                                gain.connect(ctx.destination);
-                                osc.frequency.value = 440;
-                                osc.type = 'sine';
-                                gain.gain.value = 0.15;
-                                osc.start(startTime + i * 0.3);
-                                osc.stop(startTime + i * 0.3 + 0.2);
-                            }
-                        }
-                        // Ring 3 times with pauses
-                        ring(ctx.currentTime + 0.2);
-                        ring(ctx.currentTime + 1.2);
-                        ring(ctx.currentTime + 2.2);
-                    })();
-                </script>
-                """, height=0)
+                # Get TTS audio if available
+                cx_tts_b64 = st.session_state.get('cx_tts_audio', None) or ""
 
-                # After 3 seconds, transition to active call
-                import time as cx_time
-                cx_time.sleep(3)
-                st.session_state.cx_ringing = False
-                st.rerun()
+                # Phone state
+                cx_phone_state = st.session_state.get('cx_phone_state', 'ringing')
 
-            # ---- STATE: Call is active ----
+                # Generate opening TTS when transitioning to active
+                if cx_phone_state == "active" and not st.session_state.get('cx_opening_spoken', True) is False:
+                    pass  # TTS already generated
+
+                # Declare the custom phone call component
+                cx_phone_dir = cx_os.path.join(cx_os.path.dirname(cx_os.path.abspath(__file__)), "components", "phone_call")
+                cx_phone_component = cx_comp.declare_component("cx_phone_call", path=cx_phone_dir)
+
+                # Render the component
+                cx_phone_result = cx_phone_component(
+                    state=cx_phone_state,
+                    messages=cx_msgs_data,
+                    persona=cx_persona_data,
+                    avatar_url=cx_avatar_url,
+                    tts_audio=cx_tts_b64,
+                    turn_count=session.get_turn_count(),
+                    turns_left=scenario.max_turns - session.get_turn_count(),
+                    key="cx_phone_live",
+                    height=520,
+                )
+
+                # Clear TTS after sending to component
+                if cx_tts_b64:
+                    st.session_state.cx_tts_audio = None
+
+                # Handle component actions
+                if cx_phone_result and isinstance(cx_phone_result, dict):
+                    action = cx_phone_result.get('action', '')
+
+                    if action == 'pick_up':
+                        st.session_state.cx_phone_state = "active"
+                        # Generate opening line TTS
+                        if session.messages:
+                            try:
+                                cx_el_key = st.secrets.get("elevenlabs", {}).get("api_key", "")
+                                if cx_el_key:
+                                    import requests as cx_el_req
+                                    cx_voice_id = "21m00Tcm4TlvDq8ikWAM"
+                                    cx_tts_r = cx_el_req.post(
+                                        f"https://api.elevenlabs.io/v1/text-to-speech/{cx_voice_id}",
+                                        headers={"xi-api-key": cx_el_key, "Content-Type": "application/json"},
+                                        json={"text": session.messages[0].content, "model_id": "eleven_monolingual_v1", "voice_settings": {"stability": 0.5, "similarity_boost": 0.75}},
+                                        timeout=15,
+                                    )
+                                    if cx_tts_r.status_code == 200:
+                                        st.session_state.cx_tts_audio = cx_b64.b64encode(cx_tts_r.content).decode()
+                            except Exception:
+                                pass
+                        st.rerun()
+
+                    elif action == 'speech':
+                        user_text = cx_phone_result.get('text', '').strip()
+                        if user_text:
+                            st.session_state.cx_phone_state = "processing"
+                            st.rerun()
+                            # Note: processing state shows "thinking..." in component
+
+                    elif action == 'end_call':
+                        if session.get_turn_count() < 2:
+                            st.warning("Have at least a couple exchanges before ending.")
+                        else:
+                            with st.spinner("Claude is scoring your performance..."):
+                                try:
+                                    elapsed = time.time() - (st.session_state.cx_start_time or time.time())
+                                    session.elapsed_seconds = elapsed
+                                    result = st.session_state.cx_engine.end_and_evaluate(session)
+                                    st.session_state.cx_result = result
+                                    st.session_state.cx_call_active = False
+                                    st.session_state.cx_call_ended = True
+                                    st.rerun()
+                                except Exception as e:
+                                    st.error(f"Evaluation failed: {str(e)}")
+
+                    elif action == 'decline':
+                        st.session_state.cx_session = None
+                        st.session_state.cx_call_active = False
+                        st.session_state.cx_phone_state = None
+                        st.rerun()
+
+                # Handle processing state — get AI reply + TTS, then go back to active
+                if st.session_state.get('cx_phone_state') == "processing":
+                    # Find the last speech text (from the component action)
+                    # We need to get the user's text — check if it was stored
+                    if cx_phone_result and isinstance(cx_phone_result, dict) and cx_phone_result.get('action') == 'speech':
+                        user_text = cx_phone_result.get('text', '').strip()
+                        if user_text:
+                            try:
+                                client_reply = st.session_state.cx_engine.send_response(session, user_text)
+                                if client_reply:
+                                    try:
+                                        cx_el_key = st.secrets.get("elevenlabs", {}).get("api_key", "")
+                                        if cx_el_key:
+                                            import requests as cx_el_req
+                                            cx_voice_id = "21m00Tcm4TlvDq8ikWAM"
+                                            cx_tts_r = cx_el_req.post(
+                                                f"https://api.elevenlabs.io/v1/text-to-speech/{cx_voice_id}",
+                                                headers={"xi-api-key": cx_el_key, "Content-Type": "application/json"},
+                                                json={"text": client_reply, "model_id": "eleven_monolingual_v1", "voice_settings": {"stability": 0.5, "similarity_boost": 0.75}},
+                                                timeout=15,
+                                            )
+                                            if cx_tts_r.status_code == 200:
+                                                st.session_state.cx_tts_audio = cx_b64.b64encode(cx_tts_r.content).decode()
+                                    except Exception:
+                                        pass
+                                st.session_state.cx_phone_state = "active"
+                                st.rerun()
+                            except Exception as e:
+                                st.error(f"Error: {str(e)}")
+                                st.session_state.cx_phone_state = "active"
+                                st.rerun()
+
+            # ---- STATE: Call is active (Text Chat / Email) ----
             elif st.session_state.cx_call_active and st.session_state.cx_session:
                 session = st.session_state.cx_session
                 scenario = session.scenario
@@ -17038,109 +17117,12 @@ def main():
                             </div>
                             """, unsafe_allow_html=True)
 
-                # Speak the client's opening line on first load (Phone Call mode only)
+                # Input area — Text Chat and Email only (Phone Call uses custom component)
                 cx_current_mode = st.session_state.get('cx_mode', 'Text Chat')
-                if "Phone Call" in cx_current_mode and not st.session_state.get('cx_opening_spoken', True):
-                    st.session_state.cx_opening_spoken = True
-                    if session.messages:
-                        cx_opening_text = session.messages[0].content
-                        try:
-                            cx_el_key = st.secrets.get("elevenlabs", {}).get("api_key", "")
-                            if cx_el_key:
-                                import requests as cx_el_requests
-                                import base64
-                                cx_voice_id = "21m00Tcm4TlvDq8ikWAM"
-                                cx_tts_open = cx_el_requests.post(
-                                    f"https://api.elevenlabs.io/v1/text-to-speech/{cx_voice_id}",
-                                    headers={
-                                        "xi-api-key": cx_el_key,
-                                        "Content-Type": "application/json",
-                                    },
-                                    json={
-                                        "text": cx_opening_text,
-                                        "model_id": "eleven_monolingual_v1",
-                                        "voice_settings": {
-                                            "stability": 0.5,
-                                            "similarity_boost": 0.75,
-                                        },
-                                    },
-                                    timeout=15,
-                                )
-                                if cx_tts_open.status_code == 200:
-                                    cx_open_b64 = base64.b64encode(cx_tts_open.content).decode()
-                                    import streamlit.components.v1 as cx_components
-                                    cx_components.html(f"""
-                                    <script>
-                                    (function() {{
-                                        var raw = atob("{cx_open_b64}");
-                                        var arr = new Uint8Array(raw.length);
-                                        for (var i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
-                                        var ctx = new (window.AudioContext || window.webkitAudioContext)();
-                                        ctx.decodeAudioData(arr.buffer, function(buf) {{
-                                            var src = ctx.createBufferSource();
-                                            src.buffer = buf;
-                                            src.connect(ctx.destination);
-                                            src.start(0);
-                                        }});
-                                    }})();
-                                    </script>
-                                    """, height=0)
-                        except Exception:
-                            pass
-
-                # Input area — varies by mode
                 cx_user_input = None
                 cx_send = False
 
-                if "Phone Call" in cx_current_mode:
-                    # Phone Call mode — mic input + text fallback
-                    st.markdown(f"""
-                    <div style="text-align: center; color: {theme['text_muted']}; font-size: 12px; margin-bottom: 8px;">
-                        Record your response using the mic below, or type it out
-                    </div>
-                    """, unsafe_allow_html=True)
-
-                    cx_audio = st.audio_input("Record your response", key=f"cx_mic_{session.get_turn_count()}")
-
-                    if cx_audio is not None:
-                        # Transcribe with Groq Whisper
-                        with st.spinner("Transcribing..."):
-                            try:
-                                import requests as cx_requests
-                                cx_transcribe_resp = cx_requests.post(
-                                    "https://api.groq.com/openai/v1/audio/transcriptions",
-                                    headers={"Authorization": f"Bearer {cx_groq_key}"},
-                                    files={"file": ("audio.wav", cx_audio.getvalue(), "audio/wav")},
-                                    data={"model": "whisper-large-v3", "language": "en"},
-                                    timeout=15,
-                                )
-                                if cx_transcribe_resp.status_code == 200:
-                                    cx_user_input = cx_transcribe_resp.json().get("text", "").strip()
-                                    if cx_user_input:
-                                        st.markdown(f"""
-                                        <div style="background: rgba(148, 97, 245, 0.1); border: 1px solid rgba(148, 97, 245, 0.3); border-radius: 8px; padding: 10px 14px; margin-bottom: 8px;">
-                                            <span style="color: {theme['text_muted']}; font-size: 11px;">You said:</span><br>
-                                            <span style="color: {theme['text']}; font-size: 14px;">{cx_user_input}</span>
-                                        </div>
-                                        """, unsafe_allow_html=True)
-                                        cx_send = True
-                                else:
-                                    st.error(f"Transcription failed: {cx_transcribe_resp.status_code}")
-                            except Exception as e:
-                                st.error(f"Mic error: {str(e)}")
-
-                    # Text fallback for phone mode
-                    st.markdown(f"<div style='color: {theme['text_muted']}; font-size: 11px; text-align: center; margin: 8px 0 4px 0;'>Or type your response:</div>", unsafe_allow_html=True)
-                    cx_phone_col1, cx_phone_col2 = st.columns([5, 1])
-                    with cx_phone_col1:
-                        cx_typed = st.text_input("Type response", key=f"cx_phone_text_{session.get_turn_count()}", placeholder="Type here...", label_visibility="collapsed")
-                    with cx_phone_col2:
-                        if st.button("Send", key="cx_phone_send", use_container_width=True):
-                            if cx_typed and cx_typed.strip():
-                                cx_user_input = cx_typed.strip()
-                                cx_send = True
-
-                elif "Email" in cx_current_mode:
+                if "Email" in cx_current_mode:
                     # Email mode — larger text area
                     cx_email_input = st.text_area(
                         "Compose your email reply",
@@ -17175,53 +17157,6 @@ def main():
                     with st.spinner("Client is responding..."):
                         try:
                             client_reply = st.session_state.cx_engine.send_response(session, cx_user_input)
-
-                            # In phone mode, use ElevenLabs TTS to speak the client's response
-                            if "Phone Call" in cx_current_mode and client_reply:
-                                try:
-                                    cx_el_key = st.secrets.get("elevenlabs", {}).get("api_key", "")
-                                    if cx_el_key:
-                                        import requests as cx_el_requests
-                                        import base64
-                                        cx_voice_id = "21m00Tcm4TlvDq8ikWAM"  # Rachel voice
-                                        cx_tts_resp = cx_el_requests.post(
-                                            f"https://api.elevenlabs.io/v1/text-to-speech/{cx_voice_id}",
-                                            headers={
-                                                "xi-api-key": cx_el_key,
-                                                "Content-Type": "application/json",
-                                            },
-                                            json={
-                                                "text": client_reply,
-                                                "model_id": "eleven_monolingual_v1",
-                                                "voice_settings": {
-                                                    "stability": 0.5,
-                                                    "similarity_boost": 0.75,
-                                                },
-                                            },
-                                            timeout=15,
-                                        )
-                                        if cx_tts_resp.status_code == 200:
-                                            cx_audio_b64 = base64.b64encode(cx_tts_resp.content).decode()
-                                            import streamlit.components.v1 as cx_components
-                                            cx_components.html(f"""
-                                            <script>
-                                            (function() {{
-                                                var raw = atob("{cx_audio_b64}");
-                                                var arr = new Uint8Array(raw.length);
-                                                for (var i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
-                                                var ctx = new (window.AudioContext || window.webkitAudioContext)();
-                                                ctx.decodeAudioData(arr.buffer, function(buf) {{
-                                                    var src = ctx.createBufferSource();
-                                                    src.buffer = buf;
-                                                    src.connect(ctx.destination);
-                                                    src.start(0);
-                                                }});
-                                            }})();
-                                            </script>
-                                            """, height=0)
-                                except Exception:
-                                    pass  # Silent fallback if TTS fails
-
                             st.rerun()
                         except Exception as e:
                             st.error(f"Error: {str(e)}")
@@ -17360,6 +17295,8 @@ def main():
                         st.session_state.cx_start_time = None
                         st.session_state.cx_ringing = False
                         st.session_state.cx_opening_spoken = True
+                        st.session_state.cx_phone_state = None
+                        st.session_state.cx_tts_audio = None
                         st.rerun()
 
     # Footer with stats
