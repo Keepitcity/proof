@@ -2657,7 +2657,7 @@ def show_login_page():
         col1, col2, col3 = st.columns([1, 2, 1])
         with col2:
             st.link_button(
-                "🔐 Sign in with Google",
+                "Sign in with Google",
                 google_oauth_url,
                 use_container_width=True
             )
