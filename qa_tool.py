@@ -10522,9 +10522,91 @@ def display_auto_sort(sort_type="Video"):
 
         else:
             # Normal input flow - show when NOT reviewing
-            vs_tab_dropbox, vs_tab_local = st.tabs(["Dropbox Link", "Local Path"])
+            vs_input_mode = st.radio(
+                "Input method",
+                ["Dropbox Link", "Local Path"],
+                horizontal=True,
+                key="vs_input_mode",
+                label_visibility="collapsed"
+            )
 
-            with vs_tab_dropbox:
+            if vs_input_mode == "Local Path":
+                st.markdown(f"""
+                <div style="color: {theme['text_secondary']}; font-size: 13px; margin-bottom: 12px;">
+                    Point to a local folder of raw video clips on your Mac. Clips will be analyzed, sorted by room type, renamed, and saved to a <code>_Sorted</code> folder with XML timelines.
+                </div>
+                """, unsafe_allow_html=True)
+
+                vs_local_path = st.text_input(
+                    "Local folder path",
+                    placeholder="/Users/yourname/Desktop/RAW Videos",
+                    key="video_sort_local_path",
+                    label_visibility="collapsed"
+                )
+
+                if vs_local_path:
+                    vs_local_path = vs_local_path.strip().strip('"').strip("'")
+
+                    if os.path.isdir(vs_local_path):
+                        video_extensions = {'.mov', '.mp4', '.avi', '.mkv', '.mxf', '.m4v'}
+                        local_vids = [
+                            f for f in os.listdir(vs_local_path)
+                            if os.path.isfile(os.path.join(vs_local_path, f)) and os.path.splitext(f)[1].lower() in video_extensions
+                        ]
+                        local_vids.sort()
+
+                        if not local_vids:
+                            st.warning("No video files found in this folder.")
+                        else:
+                            st.markdown(f"""
+                            <div style="background: {theme['card']}; border: 1px solid {theme['border']}; border-radius: 8px; padding: 12px; margin-bottom: 12px;">
+                                <span style="color: {theme['text']}; font-weight: 600;">{os.path.basename(vs_local_path)}</span>
+                                <span style="color: {theme['text_muted']}; font-size: 12px; margin-left: 8px;">{len(local_vids)} video clips found</span>
+                            </div>
+                            """, unsafe_allow_html=True)
+
+                            vs_export_format = st.selectbox(
+                                "Export format",
+                                ["DaVinci Resolve", "Adobe Premiere Pro", "Final Cut Pro X"],
+                                key="vs_local_export_format"
+                            )
+
+                            if st.button("Sort & Generate XML", key="btn_video_sort_local", use_container_width=True, type="primary"):
+                                if LOCAL_FOLDER_AVAILABLE:
+                                    with st.spinner("Analyzing and sorting video clips..."):
+                                        processor = LocalFolderProcessor()
+                                        result = processor.process_videos(vs_local_path)
+
+                                        if result.clips:
+                                            output_folder = os.path.join(vs_local_path, "_Sorted")
+                                            mapping = processor.export_sorted_videos(output_folder, copy_files=True)
+                                            xml_exports = processor.generate_video_xml(output_folder, project_name=os.path.basename(vs_local_path))
+
+                                            st.success(f"Sorted {len(result.clips)} clips into {output_folder}")
+
+                                            rename_data = []
+                                            for clip in result.clips:
+                                                rename_data.append({
+                                                    'Original': clip.original_name,
+                                                    'New Name': clip.new_name,
+                                                    'Scene': clip.scene_type.replace('_', ' ').title(),
+                                                    'Duration': f"{clip.duration:.1f}s" if clip.duration > 0 else "N/A"
+                                                })
+                                            import pandas as pd
+                                            st.dataframe(pd.DataFrame(rename_data), use_container_width=True, hide_index=True)
+
+                                            if xml_exports:
+                                                st.markdown(f"**XML timelines saved to:** `{output_folder}`")
+                                        else:
+                                            st.warning("No video clips could be processed.")
+                                else:
+                                    st.error("Local folder processor not available. Check that local_folder.py exists.")
+
+                    elif vs_local_path:
+                        st.error("Folder not found. Check the path and try again.")
+
+            else:
+                # Dropbox Link mode
                 # Simple Dropbox integration - no authentication needed
                 st.markdown("""
                 <div style="background: rgba(123, 140, 222, 0.1); border: 1px solid rgba(123, 140, 222, 0.3);
@@ -10539,13 +10621,12 @@ def display_auto_sort(sort_type="Video"):
                 </div>
                 """, unsafe_allow_html=True)
 
-            # Shared link input
             dropbox_link = st.text_input(
             "Dropbox Shared Folder Link",
             value=st.session_state.get('dropbox_shared_link', ''),
             placeholder="https://www.dropbox.com/scl/fo/...",
             help="Paste the shared link to your raw footage folder"
-        )
+        ) if vs_input_mode == "Dropbox Link" else ""
 
         if dropbox_link:
             st.session_state.dropbox_shared_link = dropbox_link
@@ -12403,92 +12484,6 @@ def display_auto_sort(sort_type="Video"):
             if 'auto_sort_temp_dir' in st.session_state:
                 del st.session_state.auto_sort_temp_dir
             st.rerun()
-
-    # Video Sort Local Path tab content
-    if sort_mode != "Photos" and not (st.session_state.get('dropbox_clips_for_review') or st.session_state.get('local_clips_for_review')):
-        try:
-            vs_tab_local
-        except NameError:
-            pass
-        else:
-            with vs_tab_local:
-                st.markdown(f"""
-                <div style="color: {theme['text_secondary']}; font-size: 13px; margin-bottom: 12px;">
-                    Point to a local folder of raw video clips on your Mac. Clips will be analyzed, sorted by room type, renamed, and saved to a <code>_Sorted</code> folder with XML timelines.
-                </div>
-                """, unsafe_allow_html=True)
-
-                vs_local_path = st.text_input(
-                    "Local folder path",
-                    placeholder="/Users/yourname/Desktop/RAW Videos",
-                    key="video_sort_local_path",
-                    label_visibility="collapsed"
-                )
-
-                if vs_local_path:
-                    vs_local_path = vs_local_path.strip().strip('"').strip("'")
-
-                    if os.path.isdir(vs_local_path):
-                        video_extensions = {'.mov', '.mp4', '.avi', '.mkv', '.mxf', '.m4v'}
-                        local_vids = [
-                            f for f in os.listdir(vs_local_path)
-                            if os.path.isfile(os.path.join(vs_local_path, f)) and os.path.splitext(f)[1].lower() in video_extensions
-                        ]
-                        local_vids.sort()
-
-                        if not local_vids:
-                            st.warning("No video files found in this folder.")
-                        else:
-                            st.markdown(f"""
-                            <div style="background: {theme['card']}; border: 1px solid {theme['border']}; border-radius: 8px; padding: 12px; margin-bottom: 12px;">
-                                <span style="color: {theme['text']}; font-weight: 600;">{os.path.basename(vs_local_path)}</span>
-                                <span style="color: {theme['text_muted']}; font-size: 12px; margin-left: 8px;">{len(local_vids)} video clips found</span>
-                            </div>
-                            """, unsafe_allow_html=True)
-
-                            vs_export_format = st.selectbox(
-                                "Export format",
-                                ["DaVinci Resolve", "Adobe Premiere Pro", "Final Cut Pro X"],
-                                key="vs_local_export_format"
-                            )
-
-                            if st.button("Sort & Generate XML", key="btn_video_sort_local", use_container_width=True, type="primary"):
-                                if LOCAL_FOLDER_AVAILABLE:
-                                    with st.spinner("Analyzing and sorting video clips..."):
-                                        processor = LocalFolderProcessor()
-                                        result = processor.process_videos(vs_local_path)
-
-                                        if result.clips:
-                                            # Create _Sorted output folder
-                                            output_folder = os.path.join(vs_local_path, "_Sorted")
-                                            mapping = processor.export_sorted_videos(output_folder, copy_files=True)
-
-                                            # Generate XML timelines
-                                            xml_exports = processor.generate_video_xml(output_folder, project_name=os.path.basename(vs_local_path))
-
-                                            st.success(f"Sorted {len(result.clips)} clips into {output_folder}")
-
-                                            # Show rename preview
-                                            rename_data = []
-                                            for clip in result.clips:
-                                                rename_data.append({
-                                                    'Original': clip.original_name,
-                                                    'New Name': clip.new_name,
-                                                    'Scene': clip.scene_type.replace('_', ' ').title(),
-                                                    'Duration': f"{clip.duration:.1f}s" if clip.duration > 0 else "N/A"
-                                                })
-                                            import pandas as pd
-                                            st.dataframe(pd.DataFrame(rename_data), use_container_width=True, hide_index=True)
-
-                                            if xml_exports:
-                                                st.markdown(f"**XML timelines saved to:** `{output_folder}`")
-                                        else:
-                                            st.warning("No video clips could be processed.")
-                                else:
-                                    st.error("Local folder processor not available. Check that local_folder.py exists.")
-
-                    elif vs_local_path:
-                        st.error("Folder not found. Check the path and try again.")
 
     # Footer with stats
     render_footer()
