@@ -17070,9 +17070,20 @@ def main():
                                     cx_open_b64 = base64.b64encode(cx_tts_open.content).decode()
                                     import streamlit.components.v1 as cx_components
                                     cx_components.html(f"""
-                                    <audio autoplay>
-                                        <source src="data:audio/mpeg;base64,{cx_open_b64}" type="audio/mpeg">
-                                    </audio>
+                                    <script>
+                                    (function() {{
+                                        var raw = atob("{cx_open_b64}");
+                                        var arr = new Uint8Array(raw.length);
+                                        for (var i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
+                                        var ctx = new (window.AudioContext || window.webkitAudioContext)();
+                                        ctx.decodeAudioData(arr.buffer, function(buf) {{
+                                            var src = ctx.createBufferSource();
+                                            src.buffer = buf;
+                                            src.connect(ctx.destination);
+                                            src.start(0);
+                                        }});
+                                    }})();
+                                    </script>
                                     """, height=0)
                         except Exception:
                             pass
@@ -17193,9 +17204,20 @@ def main():
                                             cx_audio_b64 = base64.b64encode(cx_tts_resp.content).decode()
                                             import streamlit.components.v1 as cx_components
                                             cx_components.html(f"""
-                                            <audio autoplay>
-                                                <source src="data:audio/mpeg;base64,{cx_audio_b64}" type="audio/mpeg">
-                                            </audio>
+                                            <script>
+                                            (function() {{
+                                                var raw = atob("{cx_audio_b64}");
+                                                var arr = new Uint8Array(raw.length);
+                                                for (var i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
+                                                var ctx = new (window.AudioContext || window.webkitAudioContext)();
+                                                ctx.decodeAudioData(arr.buffer, function(buf) {{
+                                                    var src = ctx.createBufferSource();
+                                                    src.buffer = buf;
+                                                    src.connect(ctx.destination);
+                                                    src.start(0);
+                                                }});
+                                            }})();
+                                            </script>
                                             """, height=0)
                                 except Exception:
                                     pass  # Silent fallback if TTS fails
