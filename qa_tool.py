@@ -13250,6 +13250,8 @@ def main():
             "home": ("Home", "Home"),
             "video": ("Video Proof", "Video"),
             "photo": ("Photo Proof", "Photo"),
+            "timeline_x": ("Timeline X", "Timeline X"),
+            "director_x": ("Director X", "Director X"),
             "photo_sort": ("Photo Sort", "Auto Sort"),
             "video_sort": ("Video Sort", "Auto Sort"),
             "about": ("About", "About"),
@@ -13414,6 +13416,8 @@ def main():
         <div class="proof-navbar-nav">
             <a href="{build_nav_url('photo')}" target="_parent" class="proof-navbar-link {photo_active}">Photo</a>
             <a href="{build_nav_url('video')}" target="_parent" class="proof-navbar-link {video_active}">Video</a>
+            <a href="{build_nav_url('timeline_x')}" target="_parent" class="proof-navbar-link {'active' if current_page == 'Timeline X' else ''}" style="display: flex; align-items: center; gap: 6px;">Timeline X <span style="background: #8B5CF6; color: white; font-size: 9px; font-weight: 600; padding: 2px 6px; border-radius: 4px;">BETA</span></a>
+            <a href="{build_nav_url('director_x')}" target="_parent" class="proof-navbar-link {'active' if current_page == 'Director X' else ''}" style="display: flex; align-items: center; gap: 6px;">Director X <span style="background: #8B5CF6; color: white; font-size: 9px; font-weight: 600; padding: 2px 6px; border-radius: 4px;">BETA</span></a>
             <div class="proof-dropdown">
                 <span class="proof-navbar-link {sort_active}">Auto Sort ▾</span>
                 <div class="proof-dropdown-content">
@@ -15477,6 +15481,74 @@ def main():
 
                 display_report(report)
                 os.unlink(tmp_path)
+
+    # =============================================
+    # TIMELINE X - AI-Powered Timeline Assembly
+    # =============================================
+    if app_mode == "Timeline X":
+        st.markdown(f"""
+        <div style="text-align: center; margin-bottom: 30px;">
+            <div style="display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 8px;">
+                <h2 style="color: {theme['text']}; margin: 0;">Timeline X</h2>
+                <span style="background: #8B5CF6; color: white; font-size: 11px; font-weight: 600; padding: 4px 8px; border-radius: 4px;">BETA</span>
+            </div>
+            <p style="color: {theme['text_secondary']}; font-size: 14px;">AI-powered timeline assembly - analyze footage, make editorial decisions, export to your NLE</p>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # Feature cards
+        st.markdown(f"""
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 30px;">
+            <div style="background: {theme['card']}; border: 1px solid {theme['border']}; border-radius: 12px; padding: 20px; text-align: center;">
+                <div style="color: {theme['text']}; font-weight: 600; font-size: 14px; margin-bottom: 8px;">Analyze Footage</div>
+                <div style="color: {theme['text_secondary']}; font-size: 12px;">AI identifies shot types, camera movement, and content</div>
+            </div>
+            <div style="background: {theme['card']}; border: 1px solid {theme['border']}; border-radius: 12px; padding: 20px; text-align: center;">
+                <div style="color: {theme['text']}; font-weight: 600; font-size: 14px; margin-bottom: 8px;">Editorial Decisions</div>
+                <div style="color: {theme['text_secondary']}; font-size: 12px;">Built on principles from Murch, Schoonmaker & the masters</div>
+            </div>
+            <div style="background: {theme['card']}; border: 1px solid {theme['border']}; border-radius: 12px; padding: 20px; text-align: center;">
+                <div style="color: {theme['text']}; font-weight: 600; font-size: 14px; margin-bottom: 8px;">Export to NLE</div>
+                <div style="color: {theme['text_secondary']}; font-size: 12px;">DaVinci Resolve, Final Cut Pro, Premiere Pro</div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        st.info("Timeline X is in active development. Upload functionality coming soon!")
+
+    # =============================================
+    # DIRECTOR X - AI Creative Director Feedback
+    # =============================================
+    if app_mode == "Director X":
+        st.markdown(f"""
+        <div style="text-align: center; margin-bottom: 30px;">
+            <div style="display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 8px;">
+                <h2 style="color: {theme['text']}; margin: 0;">Director X</h2>
+                <span style="background: #8B5CF6; color: white; font-size: 11px; font-weight: 600; padding: 4px 8px; border-radius: 4px;">BETA</span>
+            </div>
+            <p style="color: {theme['text_secondary']}; font-size: 14px;">AI creative director - get professional feedback, ratings, and improvement suggestions</p>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # Feature cards
+        st.markdown(f"""
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 30px;">
+            <div style="background: {theme['card']}; border: 1px solid {theme['border']}; border-radius: 12px; padding: 20px; text-align: center;">
+                <div style="color: {theme['text']}; font-weight: 600; font-size: 14px; margin-bottom: 8px;">Video Review</div>
+                <div style="color: {theme['text_secondary']}; font-size: 12px;">Upload your edit for comprehensive analysis</div>
+            </div>
+            <div style="background: {theme['card']}; border: 1px solid {theme['border']}; border-radius: 12px; padding: 20px; text-align: center;">
+                <div style="color: {theme['text']}; font-weight: 600; font-size: 14px; margin-bottom: 8px;">Director Score</div>
+                <div style="color: {theme['text_secondary']}; font-size: 12px;">Get a professional rating with detailed breakdown</div>
+            </div>
+            <div style="background: {theme['card']}; border: 1px solid {theme['border']}; border-radius: 12px; padding: 20px; text-align: center;">
+                <div style="color: {theme['text']}; font-weight: 600; font-size: 14px; margin-bottom: 8px;">Improvement Notes</div>
+                <div style="color: {theme['text_secondary']}; font-size: 12px;">Actionable feedback to level up your edit</div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        st.info("Director X is in active development. Review functionality coming soon!")
 
     # Footer with stats
     render_footer()
