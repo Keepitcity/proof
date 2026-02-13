@@ -16879,6 +16879,7 @@ def main():
                             st.session_state.cx_session = session
                             st.session_state.cx_call_active = True
                             st.session_state.cx_start_time = time.time()
+                            st.session_state.cx_opening_spoken = False
                             st.rerun()
 
             # ---- STATE: Call is active ----
@@ -16969,8 +16970,46 @@ def main():
                             </div>
                             """, unsafe_allow_html=True)
 
-                # Input area — varies by mode
+                # Speak the client's opening line on first load (Phone Call mode only)
                 cx_current_mode = st.session_state.get('cx_mode', '💬 Text Chat')
+                if "Phone Call" in cx_current_mode and not st.session_state.get('cx_opening_spoken', True):
+                    st.session_state.cx_opening_spoken = True
+                    if session.messages:
+                        cx_opening_text = session.messages[0].content
+                        try:
+                            cx_el_key = st.secrets.get("elevenlabs", {}).get("api_key", "")
+                            if cx_el_key:
+                                import requests as cx_el_requests
+                                import base64
+                                cx_voice_id = "21m00Tcm4TlvDq8ikWAM"
+                                cx_tts_open = cx_el_requests.post(
+                                    f"https://api.elevenlabs.io/v1/text-to-speech/{cx_voice_id}",
+                                    headers={
+                                        "xi-api-key": cx_el_key,
+                                        "Content-Type": "application/json",
+                                    },
+                                    json={
+                                        "text": cx_opening_text,
+                                        "model_id": "eleven_monolingual_v1",
+                                        "voice_settings": {
+                                            "stability": 0.5,
+                                            "similarity_boost": 0.75,
+                                        },
+                                    },
+                                    timeout=15,
+                                )
+                                if cx_tts_open.status_code == 200:
+                                    cx_open_b64 = base64.b64encode(cx_tts_open.content).decode()
+                                    import streamlit.components.v1 as cx_components
+                                    cx_components.html(f"""
+                                    <audio autoplay>
+                                        <source src="data:audio/mpeg;base64,{cx_open_b64}" type="audio/mpeg">
+                                    </audio>
+                                    """, height=0)
+                        except Exception:
+                            pass
+
+                # Input area — varies by mode
                 cx_user_input = None
                 cx_send = False
 
@@ -17058,18 +17097,40 @@ def main():
                         try:
                             client_reply = st.session_state.cx_engine.send_response(session, cx_user_input)
 
-                            # In phone mode, use browser TTS to speak the client's response
+                            # In phone mode, use ElevenLabs TTS to speak the client's response
                             if "Phone Call" in cx_current_mode and client_reply:
-                                import streamlit.components.v1 as cx_components
-                                safe_reply = client_reply.replace("'", "\\'").replace('"', '\\"').replace('\n', ' ')
-                                cx_components.html(f"""
-                                <script>
-                                    var utterance = new SpeechSynthesisUtterance("{safe_reply}");
-                                    utterance.rate = 1.0;
-                                    utterance.pitch = 1.0;
-                                    window.speechSynthesis.speak(utterance);
-                                </script>
-                                """, height=0)
+                                try:
+                                    cx_el_key = st.secrets.get("elevenlabs", {}).get("api_key", "")
+                                    if cx_el_key:
+                                        import requests as cx_el_requests
+                                        import base64
+                                        cx_voice_id = "21m00Tcm4TlvDq8ikWAM"  # Rachel voice
+                                        cx_tts_resp = cx_el_requests.post(
+                                            f"https://api.elevenlabs.io/v1/text-to-speech/{cx_voice_id}",
+                                            headers={
+                                                "xi-api-key": cx_el_key,
+                                                "Content-Type": "application/json",
+                                            },
+                                            json={
+                                                "text": client_reply,
+                                                "model_id": "eleven_monolingual_v1",
+                                                "voice_settings": {
+                                                    "stability": 0.5,
+                                                    "similarity_boost": 0.75,
+                                                },
+                                            },
+                                            timeout=15,
+                                        )
+                                        if cx_tts_resp.status_code == 200:
+                                            cx_audio_b64 = base64.b64encode(cx_tts_resp.content).decode()
+                                            import streamlit.components.v1 as cx_components
+                                            cx_components.html(f"""
+                                            <audio autoplay>
+                                                <source src="data:audio/mpeg;base64,{cx_audio_b64}" type="audio/mpeg">
+                                            </audio>
+                                            """, height=0)
+                                except Exception:
+                                    pass  # Silent fallback if TTS fails
 
                             st.rerun()
                         except Exception as e:
