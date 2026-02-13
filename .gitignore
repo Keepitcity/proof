@@ -34,6 +34,9 @@ learning.db
 # Streamlit secrets (contains OAuth credentials)
 .streamlit/secrets.toml
 
+# Credentials reference (contains API keys — NEVER push)
+CREDENTIALS_REFERENCE.md
+
 # Development files
 calibrate_log_detection.py
 test_qa.py
