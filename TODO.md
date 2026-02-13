@@ -27,14 +27,13 @@
 
 ## In Progress / Pending
 
-(none — all caught up!)
+- [ ] **Google OAuth redirect URI** — add `http://localhost:8502` in Google Cloud Console (you do this in your browser)
+- [ ] **GitHub ownership** — clarify if `shawnac1` is your personal account or Aerial Canvas; if not yours, create new repo under personal GitHub
+- [ ] **Streamlit Cloud deployment** — deploy to share.streamlit.io under personal GitHub, paste secrets, add production redirect URI
 
 ## Future / Backlog
 
 - [ ] Re-implement dark mode (see `dark_mode_reference.md`)
-- [ ] Dropbox migration to personal account (see `proof_ownership_migration.md`)
-- [ ] GitHub migration (clarify shawnac1 ownership)
-- [ ] Streamlit Cloud deployment under personal account
 - [ ] Push to remote GitHub regularly
 
 ---
